@@ -1,0 +1,14 @@
+Tabulature printer webapp
+
+UI shows full sheet of manuscript paper with tabulature staves of six unlabeled lines. Menu button in screen corner. Additional page button at bottom.
+
+User adds alphanumeric fret indicators on the lines and bar lines and repeat signs across them.
+
+Navigation by keyboard or mouse.
+
+Menu options:
+landscape/portrait
+number of lines per staff
+automatic bar lines: 0/4 bars per staff
+fret indicator on/above line
+Export: PNG (all pages or page 1), print/PDF

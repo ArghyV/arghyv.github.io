@@ -1,0 +1,7 @@
+{
+  "name": "typewriter",
+  "type": "module",
+  "scripts": {
+    "test": "node tests/paperSizes_test.mjs && node tests/cursorState_test.mjs && node tests/pageModel_test.mjs && node tests/tabStops_test.mjs && node tests/phase4_test.mjs && node tests/phase5_test.mjs && node tests/export_test.mjs"
+  }
+}

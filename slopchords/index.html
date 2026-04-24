@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SlopChords 2026</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #1a1a1a;
+    --panel: #242424;
+    --border: #3a3a3a;
+    --text: #e8e8e8;
+    --muted: #888;
+    --accent: #6a9fb5;
+    --accent2: #5a8fa5;
+    --error: #c0392b;
+    --font: 'Courier New', Courier, monospace;
+    --WH: 22px;
+    --CCH: 18px;
+  }
+
+  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--font); font-size: 14px; }
+
+  #app { display: grid; grid-template-rows: auto 1fr auto; height: 100%; }
+
+  /* ── Toolbar ── */
+  #toolbar {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+  #toolbar h1 { font-size: 12px; font-weight: bold; color: var(--accent); margin-right: 6px; letter-spacing: 0.04em; }
+  .tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 2px; }
+
+  button {
+    background: #2e2e2e; border: 1px solid var(--border);
+    color: var(--text); padding: 3px 9px; border-radius: 3px;
+    cursor: pointer; font: inherit; font-size: 12px;
+    transition: background 0.1s;
+  }
+  button:hover { background: #3e3e3e; }
+  button.primary { background: var(--accent2); border-color: var(--accent); color: #fff; }
+  button.primary:hover { background: var(--accent); }
+
+  /* ── Error banner ── */
+  #error-banner {
+    display: none; position: fixed; top: 0; left: 0; right: 0;
+    background: var(--error); color: #fff; padding: 7px 16px;
+    font-size: 13px; z-index: 200; cursor: pointer;
+  }
+  #error-banner.visible { display: block; }
+
+  /* ── Panels ── */
+  #panels {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1px; background: var(--border); overflow: hidden;
+  }
+  .panel { background: var(--panel); display: flex; flex-direction: column; overflow: hidden; }
+  .panel-label { font-size: 11px; color: var(--muted); padding: 3px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+
+  /* ── Lyrics textarea ── */
+  #lyrics {
+    flex: 1; resize: none; border: none; outline: none;
+    background: transparent; color: var(--text); font: inherit;
+    padding: 12px; line-height: 1.8;
+    white-space: pre; overflow-wrap: normal; overflow: auto;
+  }
+  #lyrics.drag-over { outline: 2px dashed var(--accent); outline-offset: -4px; }
+
+  /* ── Layout canvas panel ── */
+  #layout-panel { position: relative; overflow: auto; cursor: default; }
+  #layout-canvas { display: block; }
+
+  /* ── Statusbar ── */
+  #statusbar {
+    background: var(--panel); border-top: 1px solid var(--border);
+    padding: 2px 12px; font-size: 11px; color: var(--muted);
+    display: flex; gap: 16px;
+  }
+
+  /* ── Print styles ── */
+  @media print {
+    #toolbar, #statusbar, #error-banner, .panel-label { display: none !important; }
+    #app { display: block; height: auto; }
+    #panels { display: block; background: none; gap: 0; }
+    .panel:first-child { display: none; }   /* hide lyrics panel */
+    #layout-panel { overflow: visible; }
+    #layout-canvas { width: 100% !important; height: auto !important; }
+    /* Grid dots are drawn on canvas — layoutField skips them in print mode */
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="toolbar">
+    <h1>SlopChords 2026</h1>
+    <div class="tb-sep"></div>
+    <button id="btn-upload">Open…</button>
+    <input id="file-input" type="file" accept=".txt,.json" style="display:none">
+    <button id="btn-save" class="primary">Save</button>
+    <div class="tb-sep"></div>
+    <button id="btn-export-pdf">Export PDF</button>
+    <button id="btn-print">Print</button>
+  </div>
+
+  <div id="panels">
+    <div class="panel">
+      <div class="panel-label">Lyrics — type, paste, or drag a file</div>
+      <textarea id="lyrics" spellcheck="false"
+        placeholder="Paste or type lyrics here…&#10;&#10;Use | for bar lines&#10;Use hyphens inside words to split syllables: hel-lo&#10;Use _ for an empty slot with a chord cell"></textarea>
+    </div>
+    <div class="panel" id="layout-panel">
+      <div class="panel-label">Layout — click chord cells to label, drag words/bars to reposition</div>
+      <canvas id="layout-canvas"></canvas>
+    </div>
+  </div>
+
+  <div id="statusbar">
+    <span id="status-words">0 words</span>
+    <span id="status-bars">0 bars</span>
+    <span id="status-pages">1 page</span>
+  </div>
+</div>
+
+<div id="error-banner"></div>
+
+<script type="module">
+import { mountLyricsField }  from './src/lyricsField.js'
+import { mountLayoutField }  from './src/layoutField.js'
+import { layoutSong }        from './src/layout.js'
+import { serialise, deserialise } from './src/persistence.js'
+
+// ── Error banner ──────────────────────────────────────────────────────────────
+const banner = document.getElementById('error-banner')
+function showError(msg) {
+  banner.textContent = `⚠ ${msg}  (click to dismiss)`
+  banner.classList.add('visible')
+}
+banner.addEventListener('click', () => banner.classList.remove('visible'))
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let currentTokens = []
+
+// ── Layout field ──────────────────────────────────────────────────────────────
+const canvas = document.getElementById('layout-canvas')
+const layoutField = mountLayoutField(canvas, {
+  onTokensChange: tokens => {
+    currentTokens = tokens
+    lyricsField.setTokens(tokens)
+    updateStatus()
+  }
+})
+
+// ── Lyrics field ──────────────────────────────────────────────────────────────
+const textarea = document.getElementById('lyrics')
+const lyricsField = mountLyricsField(textarea, {
+  onTokens: tokens => {
+    currentTokens = tokens
+    const pages = layoutSong(tokens)
+    layoutField.setPages(pages, tokens)
+    updateStatus()
+  },
+  onError: showError,
+})
+
+// ── File upload ───────────────────────────────────────────────────────────────
+const fileInput = document.getElementById('file-input')
+document.getElementById('btn-upload').addEventListener('click', () => fileInput.click())
+fileInput.addEventListener('change', async () => {
+  const file = fileInput.files[0]
+  if (!file) return
+  const content = await file.text()
+  // Try deserialising as SlopChords save first
+  let loaded = false
+  if (file.name.endsWith('.json')) {
+    try {
+      const tokens = deserialise(content)
+      currentTokens = tokens
+      lyricsField.setTokens(tokens)
+      textarea.value = lyricsField.getValue()
+      const pages = layoutSong(tokens)
+      layoutField.setPages(pages, tokens)
+      updateStatus()
+      loaded = true
+    } catch (e) { /* fall through to text import */ }
+  }
+  if (!loaded) {
+    await lyricsField.simulateDrop({ type: file.type || 'text/plain', content })
+    textarea.value = lyricsField.getValue()
+  }
+  fileInput.value = ''
+})
+
+// ── Drag-over styling on textarea ────────────────────────────────────────────
+textarea.addEventListener('dragenter', () => textarea.classList.add('drag-over'))
+textarea.addEventListener('dragleave', () => textarea.classList.remove('drag-over'))
+textarea.addEventListener('drop',      () => textarea.classList.remove('drag-over'))
+
+// ── Save ──────────────────────────────────────────────────────────────────────
+document.getElementById('btn-save').addEventListener('click', () => {
+  try {
+    download('slopchords-save.json', serialise(currentTokens), 'application/json')
+  } catch (e) { showError('Save failed: ' + e.message) }
+})
+
+// ── Print ─────────────────────────────────────────────────────────────────────
+document.getElementById('btn-print').addEventListener('click', () => window.print())
+
+// ── Export PDF ────────────────────────────────────────────────────────────────
+// Uses browser print-to-PDF. Canvas renders without grid in a future improvement;
+// for now print CSS hides the lyrics panel and fills the page with the canvas.
+document.getElementById('btn-export-pdf').addEventListener('click', () => window.print())
+
+// ── Status ────────────────────────────────────────────────────────────────────
+function updateStatus() {
+  const words = currentTokens.filter(t => t.type === 'word' && t.text !== '_').length
+  const bars  = currentTokens.filter(t => t.type === 'barline').length
+  const pages = Math.max(1, currentTokens.filter(t => t.type === 'pagebreak').length + 1)
+  document.getElementById('status-words').textContent = `${words} word${words !== 1 ? 's' : ''}`
+  document.getElementById('status-bars').textContent  = `${bars} bar${bars !== 1 ? 's' : ''}`
+  document.getElementById('status-pages').textContent = `${pages} page${pages !== 1 ? 's' : ''}`
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function download(filename, text, type) {
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([text], { type }))
+  a.download = filename
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
+</script>
+</body>
+</html>

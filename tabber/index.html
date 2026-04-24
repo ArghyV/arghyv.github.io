@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TabPrint</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400;600&family=DM+Sans:wght@300;400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --ink:         #1a1410;
+  --paper:       #f5f0e8;
+  --paper-mid:   #ede5d0;
+  --accent:      #8b2020;
+  --ui-bg:       #242018;
+  --ui-text:     #e8e0cc;
+  --cell-hl:     rgba(139,32,32,0.13);
+  --cell-stroke: rgba(139,32,32,0.6);
+  --cursor-col:  #8b2020;
+}
+
+body {
+  background: #2e2a24;
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  display: flex; flex-direction: column; align-items: center;
+  overscroll-behavior: none;
+}
+
+/* ── TOOLBAR ── */
+.toolbar {
+  width: 100%; height: 42px;
+  background: var(--ui-bg);
+  border-bottom: 2px solid var(--accent);
+  display: flex; align-items: center;
+  position: sticky; top: 0; z-index: 100; flex-shrink: 0;
+  overflow: hidden;
+}
+.menu-btn {
+  background: var(--accent); color: #fff; border: none;
+  height: 42px; padding: 0 16px; flex-shrink: 0;
+  font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500;
+  cursor: pointer; display: flex; align-items: center; gap: 8px;
+}
+.menu-btn .bar { display:flex; flex-direction:column; gap:4px; }
+.menu-btn .bar span { display:block; width:15px; height:1.5px; background:#fff; }
+.toolbar-title {
+  color: var(--ui-text); font-family: 'Crimson Pro', serif;
+  font-size: 17px; letter-spacing: 0.1em; padding: 0 16px; opacity: 0.9; flex-shrink: 0;
+}
+.toolbar-right { margin-left: auto; display: flex; height: 42px; }
+.tbtn {
+  background: none; border: none;
+  border-left: 1px solid rgba(255,255,255,0.07);
+  color: var(--ui-text); height: 42px; padding: 0 12px;
+  font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: 0.04em;
+  cursor: pointer; opacity: 0.65; transition: opacity 0.12s, background 0.12s;
+  white-space: nowrap; flex-shrink: 0;
+}
+.tbtn:hover { opacity: 1; background: rgba(255,255,255,0.05); }
+.tbtn.on { opacity: 1; color: #f0c040; }
+.tbtn:disabled { opacity: 0.22; cursor: default; pointer-events: none; }
+
+/* ── MENU PANEL ── */
+.menu-panel {
+  position: fixed; top: 42px; left: 0; width: 248px;
+  background: var(--ui-bg);
+  border-right: 1px solid rgba(255,255,255,0.09);
+  border-bottom: 1px solid rgba(255,255,255,0.09);
+  box-shadow: 4px 4px 24px rgba(0,0,0,0.5);
+  z-index: 200; display: none; padding: 6px 0 14px;
+}
+.menu-panel.open { display: block; }
+.ms {
+  padding: 10px 14px 3px; font-size: 9px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--accent); font-weight: 500;
+}
+.mi {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 14px; color: var(--ui-text); font-size: 12px; cursor: default; gap: 8px;
+}
+.mi.clickable { cursor: pointer; }
+.mi.clickable:hover { background: rgba(255,255,255,0.05); }
+.mi select, .mi input[type=number] {
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.13);
+  color: var(--ui-text); font-family: 'DM Sans', sans-serif; font-size: 11px;
+  padding: 3px 6px; width: 92px; text-align: right; cursor: pointer;
+  border-radius: 2px;
+}
+.mi select option { background: #1a1610; }
+.mdiv { border: none; border-top: 1px solid rgba(255,255,255,0.07); margin: 6px 0; }
+.mi kbd {
+  font-size: 9px; color: rgba(232,224,204,0.4);
+  border: 1px solid rgba(232,224,204,0.15); border-radius: 2px;
+  padding: 1px 4px; font-family: monospace;
+}
+
+/* ── PAGE AREA ── */
+.page-area {
+  flex: 1; padding: 28px 20px 80px;
+  display: flex; flex-direction: column; align-items: center; gap: 28px;
+}
+
+/* ── PAPER ── */
+.page {
+  background: var(--paper); position: relative; flex-shrink: 0;
+  box-shadow: 0 2px 0 var(--paper-mid), 0 8px 40px rgba(0,0,0,0.5),
+              inset 0 1px 0 rgba(255,255,255,0.75);
+}
+.page-label {
+  position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+  font-family: 'Crimson Pro', serif; font-size: 11px;
+  color: rgba(26,20,16,0.28); letter-spacing: 0.08em; pointer-events: none;
+  white-space: nowrap;
+}
+
+/* ── STAFF ── */
+.staff-wrap { position: relative; overflow: hidden; flex-shrink: 0; }
+
+/* SVG element styles */
+.staff-svg .string-line   { stroke: var(--ink); stroke-width: 0.8; stroke-opacity: 0.52; }
+.staff-svg .staff-edge    { stroke: var(--ink); stroke-width: 1.5; stroke-opacity: 0.8; }
+.staff-svg .barline       { stroke: var(--ink); stroke-width: 1;   stroke-opacity: 0.58; pointer-events: none; }
+.staff-svg .barline-hover { stroke: transparent; stroke-width: 14; cursor: col-resize; }
+.staff-svg .barline-ghost { stroke: var(--accent); stroke-width: 1.5; stroke-opacity: 0;
+                             stroke-dasharray: 3 3; pointer-events: none;
+                             transition: stroke-opacity 0.12s; }
+/* sibling combinator: hover on hit-target reveals next ghost */
+.staff-svg .barline-hover:hover + .barline-ghost { stroke-opacity: 0.5; }
+.staff-svg .cursor-cell   { fill: var(--cell-hl); stroke: var(--cell-stroke); stroke-width: 1; }
+.staff-svg .cursor-blink  { fill: var(--cursor-col); animation: blink 1s step-end infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.staff-svg .cell-bg       { fill: var(--paper); }
+.staff-svg .cell-value    { font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; fill: var(--ink); }
+.staff-svg .repeat-thick  { stroke: var(--ink); stroke-width: 3.5; stroke-opacity: 0.82; stroke-linecap: butt; }
+.staff-svg .repeat-thin   { stroke: var(--ink); stroke-width: 1.2; stroke-opacity: 0.72; }
+.staff-svg .repeat-dot    { fill: var(--ink); fill-opacity: 0.78; }
+
+/* Cursor style overrides per mode */
+body.mode-barline .staff-svg   { cursor: col-resize; }
+body.mode-repeat  .staff-svg   { cursor: crosshair; }
+
+/* ── ADD PAGE ── */
+.add-page-btn {
+  background: rgba(255,255,255,0.05); border: 1.5px dashed rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.38); padding: 15px 0;
+  font-family: 'DM Sans', sans-serif; font-size: 11px; letter-spacing: 0.12em;
+  text-transform: uppercase; cursor: pointer; transition: all 0.15s;
+  width: 100%; max-width: 1200px;
+}
+.add-page-btn:hover { background: rgba(255,255,255,0.09); color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.32); }
+
+/* ── STATUS BAR ── */
+.statusbar {
+  position: fixed; bottom: 0; left: 0; right: 0; height: 26px;
+  background: var(--ui-bg); border-top: 1px solid rgba(255,255,255,0.07);
+  display: flex; align-items: center; padding: 0 14px;
+  gap: 18px; font-size: 10px; color: rgba(232,224,204,0.42); letter-spacing: 0.05em;
+  z-index: 90;
+}
+.statusbar b  { color: rgba(232,224,204,0.82); font-weight: 500; }
+.statusbar .sep { color: rgba(232,224,204,0.15); }
+.statusbar .hint { margin-left: auto; font-size: 9.5px; opacity: 0.75; }
+.statusbar .mode-tag {
+  background: rgba(240,192,64,0.15); border: 1px solid rgba(240,192,64,0.3);
+  color: #f0c040; border-radius: 2px; padding: 0 5px; font-size: 9.5px;
+  letter-spacing: 0.08em; text-transform: uppercase;
+}
+
+/* ── PRINT ── */
+@media print {
+  .toolbar, .menu-panel, .statusbar, .add-page-btn, .page-label { display: none !important; }
+  body { background: white; display: block; }
+  .page-area { padding: 0; gap: 0; display: block; }
+  .page { box-shadow: none !important; break-after: page; page-break-after: always; margin: 0; }
+  .page:last-of-type { break-after: avoid; page-break-after: avoid; }
+  .staff-svg { transform: none !important; }
+  .staff-wrap { overflow: visible !important; }
+}
+</style>
+</head>
+<body>
+
+<div class="toolbar">
+  <button class="menu-btn" id="menuToggle">
+    <span class="bar"><span></span><span></span><span></span></span>
+    Menu
+  </button>
+  <span class="toolbar-title">TabPrint</span>
+  <div class="toolbar-right">
+    <button class="tbtn" id="btnUndo" disabled>↩ Undo</button>
+    <button class="tbtn" id="btnRedo" disabled>↪ Redo</button>
+    <button class="tbtn" id="btnBarMode">Bars: 4/staff</button>
+    <button class="tbtn" id="btnIndicator">Numbers: on line</button>
+    <button class="tbtn" id="btnInsertMode">Insert: fret</button>
+    <button class="tbtn" id="btnExportPNG">↓ PNG</button>
+    <button class="tbtn" id="btnPrint">Print / PDF</button>
+  </div>
+</div>
+
+<div class="menu-panel" id="menuPanel">
+  <div class="ms">Page</div>
+  <div class="mi">
+    Paper
+    <select id="cfgPaper">
+      <option value="letter">Letter (8.5 × 11)</option>
+      <option value="a4">A4 (210 × 297 mm)</option>
+    </select>
+  </div>
+  <div class="mi">
+    Orientation
+    <select id="cfgOrientation">
+      <option value="portrait">Portrait</option>
+      <option value="landscape">Landscape</option>
+    </select>
+  </div>
+  <hr class="mdiv">
+  <div class="ms">Staff</div>
+  <div class="mi">
+    Strings per staff
+    <input type="number" id="cfgStrings" value="6" min="4" max="8" step="1">
+  </div>
+  <div class="mi">
+    Columns per staff
+    <input type="number" id="cfgCols" value="20" min="8" max="48" step="1">
+  </div>
+  <hr class="mdiv">
+  <div class="ms">Bar Lines</div>
+  <div class="mi">
+    Default bars
+    <select id="cfgBarMode">
+      <option value="none">None</option>
+      <option value="boundaries">Start &amp; end only</option>
+      <option value="four" selected>4 per staff</option>
+    </select>
+  </div>
+  <div class="mi">
+    Fret numbers
+    <select id="cfgIndicator">
+      <option value="on">On line</option>
+      <option value="above">Above line</option>
+    </select>
+  </div>
+  <hr class="mdiv">
+  <div class="ms">Insert mode <kbd>B</kbd> <kbd>R</kbd> <kbd>E</kbd></div>
+  <div class="mi clickable" id="miFret"    data-mode="fret">         ✦ Fret number</div>
+  <div class="mi clickable" id="miBarline" data-mode="barline">      ✦ Bar line</div>
+  <div class="mi clickable" id="miRepS"    data-mode="repeat-start"> ✦ Repeat start |:</div>
+  <div class="mi clickable" id="miRepE"    data-mode="repeat-end">   ✦ Repeat end :|</div>
+  <hr class="mdiv">
+  <div class="ms">Export</div>
+  <div class="mi clickable" id="miPNGAll">↓ PNG — all pages</div>
+  <div class="mi clickable" id="miPNG1">↓ PNG — page 1 only</div>
+  <div class="mi clickable" id="miPrint">↗ Print / PDF</div>
+</div>
+
+<div class="page-area" id="pageArea"></div>
+
+<div class="statusbar">
+  <span>Pg <b id="stPage">1</b></span>
+  <span class="sep">·</span>
+  <span>Staff <b id="stStaff">1</b></span>
+  <span class="sep">·</span>
+  <span>String <b id="stString">1</b></span>
+  <span class="sep">·</span>
+  <span>Col <b id="stCol">1</b></span>
+  <span id="stModeWrap"></span>
+  <span class="hint">Arrows · 0-9 fret · Del · Tab next bar · Shift+Tab prev bar · B bar · R/E repeat · ⌘Z/Y</span>
+</div>
+
+<script type="module">
+'use strict';
+// ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────────────────────────────
+const PAGE_SIZES = {
+  letter: { portrait:{width:816,height:1056}, landscape:{width:1056,height:816} },
+  a4:     { portrait:{width:794,height:1123}, landscape:{width:1123,height:794} },
+};
+const MARGINS    = { top:52, bottom:52, left:56, right:56 };
+const STAFF_GAP  = 48;
+const STR_SPC    = 24;
+const CELL_W     = 28;
+const REPEAT_TYPES = { START:'start', END:'end' };
+const BAR_MODES    = { NONE:'none', BOUNDS:'boundaries', FOUR:'four' };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MODEL
+// ─────────────────────────────────────────────────────────────────────────────
+function createStaff(strings, cols) {
+  return { cells: Array.from({length:strings}, ()=>Array(cols).fill(null)), barlines:[], repeats:[] };
+}
+function applyBarMode(staff, mode, cols) {
+  staff.barlines = [];
+  if (mode === BAR_MODES.FOUR) {
+    const step = Math.floor(cols/4);
+    for (let i=1; i<=3; i++) staff.barlines.push(i*step);
+  }
+}
+function makeStaff(doc) {
+  const s = createStaff(doc.strings, doc.cols);
+  applyBarMode(s, doc.barlinesMode, doc.cols);
+  return s;
+}
+function createDoc() {
+  return { strings:6, cols:20, paper:'letter', portrait:true,
+           barlinesMode:BAR_MODES.FOUR, indicatorAboveLine:false, staves:[] };
+}
+function addStaves(doc, n) { for (let i=0;i<n;i++) doc.staves.push(makeStaff(doc)); }
+function toggleBarline(staff, col) {
+  const i = staff.barlines.indexOf(col);
+  if (i!==-1) staff.barlines.splice(i,1);
+  else { staff.barlines.push(col); staff.barlines.sort((a,b)=>a-b); }
+}
+function addRepeat(staff, col, type) {
+  staff.repeats = staff.repeats.filter(r=>r.col!==col);
+  staff.repeats.push({col,type});
+  staff.repeats.sort((a,b)=>a.col-b.col);
+}
+function removeRepeat(staff, col) { staff.repeats = staff.repeats.filter(r=>r.col!==col); }
+function removeNearestBarline(staff, svgX, g) {
+  if (!staff.barlines.length) return;
+  const nearest = staff.barlines.reduce((best,b) =>
+    Math.abs(blx(g,b)-svgX) < Math.abs(blx(g,best)-svgX) ? b : best);
+  if (Math.abs(blx(g,nearest)-svgX) < 18)
+    staff.barlines.splice(staff.barlines.indexOf(nearest),1);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HISTORY
+// ─────────────────────────────────────────────────────────────────────────────
+const hist = { stack:[], idx:-1 };
+function hPush(s) {
+  hist.stack.splice(hist.idx+1);
+  hist.stack.push(s);
+  if (hist.stack.length>100) hist.stack.shift(); else hist.idx++;
+}
+function hUndo() { if (hist.idx>0) hist.idx--; return hist.stack[hist.idx]; }
+function hRedo() { if (hist.idx<hist.stack.length-1) hist.idx++; return hist.stack[hist.idx]; }
+function snap() { hPush(clone(doc)); }
+function clone(x) { return JSON.parse(JSON.stringify(x)); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LAYOUT
+// ─────────────────────────────────────────────────────────────────────────────
+function getPageSize() {
+  return PAGE_SIZES[doc.paper]?.[doc.portrait?'portrait':'landscape'] ?? PAGE_SIZES.letter.portrait;
+}
+function contentW(ps) { return ps.width  - MARGINS.left - MARGINS.right; }
+function contentH(ps) { return ps.height - MARGINS.top  - MARGINS.bottom; }
+function staffSVGHeight(g) { return g.H + vpad()*2; }
+function vpad() { return doc.indicatorAboveLine ? 22 : 12; }
+function calcPerPage(ps, g) {
+  const ch = contentH(ps), sh = staffSVGHeight(g);
+  return Math.max(1, Math.floor((ch + STAFF_GAP) / (sh + STAFF_GAP)));
+}
+function getGeom() {
+  const ps = getPageSize();
+  const w  = contentW(ps);
+  return { W:w, H:STR_SPC*(doc.strings-1), ss:STR_SPC, cw:CELL_W, cols:doc.cols, strings:doc.strings, ox:CELL_W/2 };
+}
+function paginate(staves, perPage) {
+  if (!staves.length) return [{pageNumber:1,staves:[]}];
+  const pages=[];
+  for (let i=0;i<staves.length;i+=perPage)
+    pages.push({pageNumber:pages.length+1, staves:staves.slice(i,i+perPage)});
+  return pages;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RENDERER (geometry)
+// ─────────────────────────────────────────────────────────────────────────────
+function cx(g,col)  { return g.ox + col*g.cw; }
+function cy(g,s)    { return s*g.ss; }
+function blx(g,col) { return g.ox + (col-0.5)*g.cw; }
+function xToCol(g,x){ return Math.max(0, Math.min(g.cols-1, Math.round((x-g.ox)/g.cw))); }
+function yToStr(g,y){ return Math.max(0, Math.min(g.strings-1, Math.round(y/g.ss))); }
+function f(n)       { return parseFloat(n.toFixed(2)); }
+
+function buildSVG(staff, g, {above=false, cursor=null, id='s', forExport=false}={}) {
+  const {W,H}=g, VP=above?22:12, VH=H+VP*2, top=VP, bot=VP+H;
+
+  // Resolved colours for export (CSS vars don't resolve in <img> context)
+  const C = forExport ? {
+    stringLine:  'stroke:#1a1410;stroke-width:0.8;stroke-opacity:0.52;',
+    staffEdge:   'stroke:#1a1410;stroke-width:1.5;stroke-opacity:0.8;',
+    barline:     'stroke:#1a1410;stroke-width:1;stroke-opacity:0.58;',
+    cellBg:      'fill:#f5f0e8;',
+    cellValue:   'font-family:sans-serif;font-size:13px;font-weight:500;fill:#1a1410;',
+    repeatThick: 'stroke:#1a1410;stroke-width:3.5;stroke-opacity:0.82;stroke-linecap:butt;',
+    repeatThin:  'stroke:#1a1410;stroke-width:1.2;stroke-opacity:0.72;',
+    repeatDot:   'fill:#1a1410;fill-opacity:0.78;',
+    cursorCell:  'fill:rgba(139,32,32,0.13);stroke:rgba(139,32,32,0.6);stroke-width:1;',
+    cursorBlink: 'fill:#8b2020;',
+  } : null;
+
+  function cls(name, style) {
+    return forExport ? `style="${style}"` : `class="${name}"`;
+  }
+
+  let o = `<svg id="${id}" ${forExport?'':'class="staff-svg"'} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${VH}" width="${W}" height="${VH}">`;
+
+  // Cursor highlight
+  if (cursor) {
+    const cvx=cx(g,cursor.colIdx), cvy=VP+cy(g,cursor.stringIdx);
+    o+=`<rect ${cls('cursor-cell',C?.cursorCell)} x="${f(cvx-g.cw/2)}" y="${f(cvy-g.ss/2+1)}" width="${g.cw}" height="${f(g.ss-2)}"/>`;
+    if (!forExport)
+      o+=`<rect ${cls('cursor-blink',C?.cursorBlink)} x="${f(cvx-4)}" y="${f(cvy-7)}" width="7" height="13"/>`;
+  }
+
+  // Strings
+  for (let s=0;s<g.strings;s++) {
+    const y=f(VP+cy(g,s));
+    o+=`<line ${cls('string-line',C?.stringLine)} x1="0" y1="${y}" x2="${W}" y2="${y}"/>`;
+  }
+
+  // Staff edges
+  o+=`<line ${cls('staff-edge',C?.staffEdge)} x1="0" y1="${top}" x2="0" y2="${bot}"/>`;
+  o+=`<line ${cls('staff-edge',C?.staffEdge)} x1="${W}" y1="${top}" x2="${W}" y2="${bot}"/>`;
+
+  // Existing barlines: hover hit-target immediately followed by visible line
+  // Ghost insertion slots: hover hit-target immediately followed by ghost line
+  // CSS: .barline-hover:hover + .barline-ghost { stroke-opacity: 0.5 }
+  // Existing barlines use .barline class (always visible); ghost slots use .barline-ghost (hidden until hover)
+  for (const col of staff.barlines) {
+    const x=f(blx(g,col));
+    if (!forExport) o+=`<line class="barline-hover" data-bl="${col}" x1="${x}" y1="${top}" x2="${x}" y2="${bot}"/>`;
+    o+=`<line ${cls('barline',C?.barline)} x1="${x}" y1="${top}" x2="${x}" y2="${bot}"/>`;
+  }
+
+  // Ghost insertion slots (positions without barlines) — screen only
+  if (!forExport) {
+    for (let col=1;col<g.cols;col++) {
+      if (staff.barlines.includes(col)) continue;
+      const x=f(blx(g,col));
+      o+=`<line class="barline-hover" data-ins="${col}" x1="${x}" y1="${top}" x2="${x}" y2="${bot}"/>`;
+      o+=`<line class="barline-ghost" x1="${x}" y1="${top}" x2="${x}" y2="${bot}"/>`;
+    }
+  }
+
+  // Repeat signs
+  for (const {col,type} of (staff.repeats||[])) {
+    const isS = type===REPEAT_TYPES.START;
+    const rx  = col===0?0 : col>=g.cols?W : blx(g,col);
+    const d   = isS?1:-1;
+    const tx=f(rx+d*2), ln=f(rx+d*6.5), dx=f(rx+d*12);
+    const d1=f(VP+H*0.33), d2=f(VP+H*0.67);
+    o+=`<line ${cls('repeat-thick',C?.repeatThick)} x1="${tx}" y1="${top}" x2="${tx}" y2="${bot}"/>`;
+    o+=`<line ${cls('repeat-thin',C?.repeatThin)}  x1="${ln}" y1="${top}" x2="${ln}" y2="${bot}"/>`;
+    o+=`<circle ${cls('repeat-dot',C?.repeatDot)} cx="${dx}" cy="${d1}" r="3"/>`;
+    o+=`<circle ${cls('repeat-dot',C?.repeatDot)} cx="${dx}" cy="${d2}" r="3"/>`;
+  }
+
+  // Cell values
+  for (let s=0;s<g.strings;s++) for (let col=0;col<g.cols;col++) {
+    const val=staff.cells[s][col]; if (!val) continue;
+    const cvx=cx(g,col), cvy=VP+cy(g,s);
+    const rW=g.cw-4, rH=14;
+    const rY=above?cvy-rH-2:cvy-rH/2, tY=above?cvy-4:cvy+4;
+    o+=`<rect ${cls('cell-bg',C?.cellBg)} x="${f(cvx-rW/2)}" y="${f(rY)}" width="${rW}" height="${rH}"/>`;
+    o+=`<text ${cls('cell-value',C?.cellValue)} x="${f(cvx)}" y="${f(tY)}" text-anchor="middle">${val}</text>`;
+  }
+
+  o+=`</svg>`;
+  return o;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NAVIGATION
+// ─────────────────────────────────────────────────────────────────────────────
+function moveRight() {
+  if (cur.colIdx < doc.cols-1) cur.colIdx++;
+  else if (cur.staffIdx < doc.staves.length-1) { cur.staffIdx++; cur.colIdx=0; }
+  pending='';
+}
+function moveLeft() {
+  if (cur.colIdx>0) cur.colIdx--;
+  else if (cur.staffIdx>0) { cur.staffIdx--; cur.colIdx=doc.cols-1; }
+  pending='';
+}
+function jumpNextBar() {
+  const staff=doc.staves[cur.staffIdx];
+  const next=staff.barlines.find(b=>b>cur.colIdx);
+  if (next!==undefined) cur.colIdx=next;
+  else if (cur.staffIdx<doc.staves.length-1) { cur.staffIdx++; cur.colIdx=0; }
+}
+function jumpPrevBar() {
+  const staff=doc.staves[cur.staffIdx];
+  if (cur.colIdx>0) {
+    const prev=[...staff.barlines].reverse().find(b=>b<cur.colIdx);
+    cur.colIdx = prev!==undefined ? prev : 0;
+  } else if (cur.staffIdx>0) { cur.staffIdx--; cur.colIdx=doc.cols-1; }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// APP STATE
+// ─────────────────────────────────────────────────────────────────────────────
+let doc = createDoc();
+addStaves(doc, 4);
+hPush(clone(doc));  // initial snapshot
+
+let cur        = { staffIdx:0, stringIdx:0, colIdx:0 };
+let pending    = '';
+let insertMode = 'fret';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────────────────────────────────────────
+function render() {
+  const area = document.getElementById('pageArea');
+  area.innerHTML = '';
+
+  const ps      = getPageSize();
+  const g       = getGeom();
+  const perPage = calcPerPage(ps, g);
+  const pages   = paginate(doc.staves, perPage);
+
+  // Scale to viewport
+  const maxW  = Math.min(ps.width, window.innerWidth - 32);
+  const scale = maxW / ps.width;
+  const sW    = ps.width  * scale;
+  const sH    = ps.height * scale;
+  const svgH  = staffSVGHeight(g);   // native px
+
+  // Distribute staves evenly within the page's content area
+  // Stave gap = distribute leftover space evenly between staves
+  const cH        = contentH(ps);
+  const totalStH  = svgH;  // per staff
+
+  let globalStaffIdx = 0;
+
+  pages.forEach(({pageNumber, staves}) => {
+    const pageEl = document.createElement('div');
+    pageEl.className = 'page';
+    pageEl.dataset.page = pageNumber;
+    pageEl.style.cssText =
+      `width:${sW}px; height:${sH}px; ` +
+      `padding:${MARGINS.top*scale}px ${MARGINS.right*scale}px ${MARGINS.bottom*scale}px ${MARGINS.left*scale}px;` +
+      `display:flex; flex-direction:column;`;
+
+    // Compute gap to spread staves through content height
+    const usedH = staves.length * svgH * scale;
+    const freeH = sH - (MARGINS.top + MARGINS.bottom) * scale - usedH;
+    const gap   = staves.length > 1 ? Math.max(4, freeH / (staves.length-1)) : 0;
+
+    staves.forEach((staff, localIdx) => {
+      const absIdx = globalStaffIdx++;
+      const isCur  = cur.staffIdx === absIdx;
+      const curObj = isCur ? {stringIdx:cur.stringIdx, colIdx:cur.colIdx} : null;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'staff-wrap';
+      wrap.style.cssText = `height:${svgH*scale}px; flex-shrink:0; ` +
+        (localIdx < staves.length-1 ? `margin-bottom:${gap}px;` : '');
+
+      wrap.innerHTML = buildSVG(staff, g, {above:doc.indicatorAboveLine, cursor:curObj, id:`sv-${absIdx}`});
+
+      const svg = wrap.querySelector('svg');
+      svg.style.cssText = `transform-origin:top left; transform:scale(${scale}); display:block;`;
+
+      attachSVGEvents(svg, staff, absIdx, scale, g);
+      pageEl.appendChild(wrap);
+    });
+
+    // Page label
+    if (pages.length > 1) {
+      const lbl = document.createElement('div');
+      lbl.className = 'page-label';
+      lbl.textContent = `— ${pageNumber} —`;
+      pageEl.appendChild(lbl);
+    }
+
+    area.appendChild(pageEl);
+  });
+
+  // Add page button
+  const btn = document.createElement('button');
+  btn.className = 'add-page-btn';
+  btn.textContent = `＋  Add Page  (${perPage} staves)`;
+  btn.addEventListener('click', () => doAddPage(perPage));
+  area.appendChild(btn);
+
+  updateStatus(perPage);
+  syncUndoButtons();
+  document.body.className = insertMode!=='fret' ? 'mode-'+insertMode.split('-')[0] : '';
+}
+
+function attachSVGEvents(svg, staff, absIdx, scale, g) {
+  svg.addEventListener('click', e => {
+    const r=svg.getBoundingClientRect(), VP=vpad();
+    const svgX=(e.clientX-r.left)/scale, svgY=(e.clientY-r.top)/scale-VP;
+    const col=xToCol(g,svgX), str=yToStr(g,svgY);
+    if (insertMode==='fret') {
+      cur={staffIdx:absIdx, stringIdx:str, colIdx:col}; pending='';
+    } else if (insertMode==='barline') {
+      if (col>0) { snap(); toggleBarline(staff,col); }
+    } else if (insertMode==='repeat-start') {
+      snap(); addRepeat(staff,col,REPEAT_TYPES.START);
+    } else if (insertMode==='repeat-end') {
+      snap(); addRepeat(staff,col,REPEAT_TYPES.END);
+    }
+    render();
+  });
+
+  svg.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const r=svg.getBoundingClientRect();
+    const svgX=(e.clientX-r.left)/scale;
+    const col=xToCol(g,svgX);
+    snap();
+    removeNearestBarline(staff, svgX, g);
+    removeRepeat(staff, col);
+    render();
+  });
+}
+
+function updateStatus(perPage) {
+  const pg = Math.floor(cur.staffIdx / perPage) + 1;
+  document.getElementById('stPage').textContent   = pg;
+  document.getElementById('stStaff').textContent  = cur.staffIdx + 1;
+  document.getElementById('stString').textContent = cur.stringIdx + 1;
+  document.getElementById('stCol').textContent    = cur.colIdx + 1;
+  const mw = document.getElementById('stModeWrap');
+  const modeLabels = {barline:'BAR',  'repeat-start':'|:', 'repeat-end':':|'};
+  const ml = modeLabels[insertMode];
+  mw.innerHTML = ml ? `<span class="mode-tag">${ml}</span>` : '';
+}
+
+function syncUndoButtons() {
+  document.getElementById('btnUndo').disabled = hist.idx <= 0;
+  document.getElementById('btnRedo').disabled = hist.idx >= hist.stack.length-1;
+}
+
+function syncMenuInsertMode() {
+  ['fret','barline','repeat-start','repeat-end'].forEach(m => {
+    const el = document.getElementById({
+      fret:'miFret', barline:'miBarline',
+      'repeat-start':'miRepS', 'repeat-end':'miRepE'
+    }[m]);
+    if (el) el.style.color = m===insertMode ? '#f0c040' : '';
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KEYBOARD
+// ─────────────────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.target.tagName==='SELECT'||e.target.tagName==='INPUT') return;
+  const staff = doc.staves[cur.staffIdx];
+  if (!staff) return;
+
+  const meta = e.metaKey||e.ctrlKey;
+
+  if (meta && e.key==='z')  { e.preventDefault(); doUndo(); return; }
+  if (meta && (e.key==='Z'||e.key==='y')) { e.preventDefault(); doRedo(); return; }
+
+  switch(e.key) {
+    case 'ArrowUp':
+      e.preventDefault();
+      cur.stringIdx=Math.max(0,cur.stringIdx-1); pending=''; break;
+    case 'ArrowDown':
+      e.preventDefault();
+      cur.stringIdx=Math.min(doc.strings-1,cur.stringIdx+1); pending=''; break;
+    case 'ArrowLeft':   e.preventDefault(); moveLeft();  break;
+    case 'ArrowRight':  e.preventDefault(); moveRight(); break;
+    case 'Tab':
+      e.preventDefault();
+      if (e.shiftKey) jumpPrevBar(); else jumpNextBar();
+      pending='';
+      break;
+    case 'Backspace': case 'Delete':
+      e.preventDefault(); snap();
+      if (pending) { pending=pending.slice(0,-1); commitFret(staff); }
+      else         { staff.cells[cur.stringIdx][cur.colIdx]=null; }
+      break;
+    case '|':
+      e.preventDefault();
+      if (cur.colIdx>0) { snap(); toggleBarline(staff,cur.colIdx); }
+      break;
+    case 'b': case 'B':
+      if (!meta) { e.preventDefault(); setMode(insertMode==='barline'?'fret':'barline'); } break;
+    case 'r': case 'R':
+      if (!meta) { e.preventDefault(); setMode(insertMode==='repeat-start'?'fret':'repeat-start'); } break;
+    case 'e': case 'E':
+      if (!meta) { e.preventDefault(); setMode(insertMode==='repeat-end'?'fret':'repeat-end'); } break;
+    case 'Escape':
+      setMode('fret'); break;
+    default:
+      if (/^[0-9a-zA-Z]$/.test(e.key) && !meta && insertMode==='fret') {
+        e.preventDefault();
+        if (!pending) snap();   // snapshot before first char only
+        pending += e.key;
+        commitFret(staff);
+        if (pending.length===2) { moveRight(); pending=''; }
+      }
+  }
+  render();
+});
+
+function commitFret(staff) {
+  staff.cells[cur.stringIdx][cur.colIdx] = pending||null;
+}
+
+function setMode(m) {
+  insertMode=m;
+  const labels = {fret:'Insert: fret', barline:'Insert: bar|', 'repeat-start':'Insert: |:', 'repeat-end':'Insert: :|'};
+  const btn=document.getElementById('btnInsertMode');
+  btn.textContent=labels[m]??m;
+  btn.classList.toggle('on', m!=='fret');
+  syncMenuInsertMode();
+}
+
+function doUndo() { doc=clone(hUndo()); cur.staffIdx=Math.min(cur.staffIdx,doc.staves.length-1); render(); }
+function doRedo() { doc=clone(hRedo()); render(); }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CONTROLS
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById('menuToggle').addEventListener('click', () =>
+  document.getElementById('menuPanel').classList.toggle('open'));
+
+document.addEventListener('click', e => {
+  if (!document.getElementById('menuPanel').contains(e.target) && e.target.id!=='menuToggle')
+    document.getElementById('menuPanel').classList.remove('open');
+});
+
+// Menu insert mode items
+['miFret','miBarline','miRepS','miRepE'].forEach(id => {
+  const el=document.getElementById(id);
+  el?.addEventListener('click', () => { setMode(el.dataset.mode); render(); });
+});
+
+document.getElementById('btnUndo').addEventListener('click', doUndo);
+document.getElementById('btnRedo').addEventListener('click', doRedo);
+
+document.getElementById('cfgPaper').addEventListener('change', e =>
+  applySettingChange(() => doc.paper=e.target.value));
+
+document.getElementById('cfgOrientation').addEventListener('change', e =>
+  applySettingChange(() => doc.portrait=e.target.value==='portrait'));
+
+document.getElementById('cfgStrings').addEventListener('change', e => {
+  const n=Math.max(4,Math.min(8,parseInt(e.target.value)||6));
+  applySettingChange(() => {
+    doc.strings=n;
+    cur.stringIdx=Math.min(cur.stringIdx,n-1);
+    doc.staves.forEach(s=>{
+      s.cells=Array.from({length:n},(_,i)=>
+        Array.from({length:doc.cols},(_,j)=>s.cells[i]?.[j]??null));
+    });
+  });
+});
+
+document.getElementById('cfgCols').addEventListener('change', e => {
+  const n=Math.max(8,Math.min(48,parseInt(e.target.value)||20));
+  applySettingChange(() => {
+    doc.cols=n;
+    doc.staves.forEach(s=>{
+      s.cells=s.cells.map(row=>Array.from({length:n},(_,j)=>row[j]??null));
+      if (doc.barlinesMode===BAR_MODES.FOUR) {
+        applyBarMode(s,doc.barlinesMode,n);
+      } else {
+        s.barlines=s.barlines.filter(b=>b>0&&b<n);
+      }
+    });
+  });
+});
+
+document.getElementById('cfgBarMode').addEventListener('change', e => {
+  applySettingChange(() => {
+    doc.barlinesMode=e.target.value;
+    doc.staves.forEach(s=>applyBarMode(s,doc.barlinesMode,doc.cols));
+    updateBarModeBtn();
+  });
+});
+
+document.getElementById('cfgIndicator').addEventListener('change', e => {
+  doc.indicatorAboveLine=e.target.value==='above';
+  updateIndicatorBtn(); render();
+});
+
+function applySettingChange(fn) { snap(); fn(); render(); }
+
+document.getElementById('btnBarMode').addEventListener('click', () => {
+  const cycle=['none','boundaries','four'];
+  doc.barlinesMode=cycle[(cycle.indexOf(doc.barlinesMode)+1)%cycle.length];
+  doc.staves.forEach(s=>applyBarMode(s,doc.barlinesMode,doc.cols));
+  document.getElementById('cfgBarMode').value=doc.barlinesMode;
+  snap(); updateBarModeBtn(); render();
+});
+
+document.getElementById('btnIndicator').addEventListener('click', () => {
+  doc.indicatorAboveLine=!doc.indicatorAboveLine;
+  document.getElementById('cfgIndicator').value=doc.indicatorAboveLine?'above':'on';
+  updateIndicatorBtn(); render();
+});
+
+document.getElementById('btnInsertMode').addEventListener('click', () => {
+  const cycle=['fret','barline','repeat-start','repeat-end'];
+  setMode(cycle[(cycle.indexOf(insertMode)+1)%cycle.length]);
+  render();
+});
+
+function updateBarModeBtn() {
+  document.getElementById('btnBarMode').textContent =
+    ({none:'Bars: none',boundaries:'Bars: edges',four:'Bars: 4/staff'})[doc.barlinesMode]??'Bars';
+}
+function updateIndicatorBtn() {
+  document.getElementById('btnIndicator').textContent =
+    'Numbers: '+(doc.indicatorAboveLine?'above':'on line');
+}
+
+function doAddPage(perPage) {
+  snap(); addStaves(doc,perPage);
+  cur.staffIdx=doc.staves.length-perPage; cur.colIdx=0; cur.stringIdx=0;
+  render();
+  setTimeout(()=>document.querySelectorAll('.page')[Math.ceil(doc.staves.length/perPage)-1]
+    ?.scrollIntoView({behavior:'smooth',block:'start'}),60);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXPORT
+// ─────────────────────────────────────────────────────────────────────────────
+
+function buildPrintCSS() {
+  const ps=getPageSize();
+  const w=(ps.width/96).toFixed(4), h=(ps.height/96).toFixed(4);
+  const ori=doc.portrait?'portrait':'landscape';
+  return `@page{size:${w}in ${h}in ${ori};margin:0;}`;
+}
+
+function pageFilename(n) { return `tab-page-${String(n).padStart(2,'0')}.png`; }
+
+async function renderPageToPNG(staves, pageNumber, g) {
+  const ps=getPageSize();
+  const DPR=2;
+  const canvas=document.createElement('canvas');
+  canvas.width=ps.width*DPR; canvas.height=ps.height*DPR;
+  const ctx=canvas.getContext('2d');
+  ctx.scale(DPR,DPR);
+  ctx.fillStyle='#f5f0e8'; ctx.fillRect(0,0,ps.width,ps.height);
+
+  let yOff=MARGINS.top;
+  const svgH=staffSVGHeight(g);
+  // Compute same gap logic as render()
+  const cH=contentH(ps);
+  const usedH=staves.length*svgH;
+  const freeH=cH-usedH;
+  const gap=staves.length>1?Math.max(STAFF_GAP,freeH/(staves.length-1)):0;
+
+  for (let i=0;i<staves.length;i++) {
+    const markup=buildSVG(staves[i],g,{above:doc.indicatorAboveLine,cursor:null,id:`exp-${pageNumber}-${i}`,forExport:true});
+    await drawSVGToCanvas(ctx, markup, MARGINS.left, yOff, g.W, svgH);
+    yOff += svgH + gap;
+  }
+  return canvas;
+}
+
+function drawSVGToCanvas(ctx, svgMarkup, x, y, w, h) {
+  return new Promise((res,rej)=>{
+    const blob=new Blob([svgMarkup],{type:'image/svg+xml'});
+    const url=URL.createObjectURL(blob);
+    const img=new Image();
+    img.onload=()=>{ ctx.drawImage(img,x,y,w,h); URL.revokeObjectURL(url); res(); };
+    img.onerror=()=>{ URL.revokeObjectURL(url); rej(); };
+    img.src=url;
+  });
+}
+
+async function exportAllPNG() {
+  const g=getGeom(), ps=getPageSize();
+  const perPage=calcPerPage(ps,g);
+  const pages=paginate(doc.staves,perPage);
+  for (const {pageNumber,staves} of pages) {
+    const canvas=await renderPageToPNG(staves,pageNumber,g);
+    const a=document.createElement('a');
+    a.download=pageFilename(pageNumber); a.href=canvas.toDataURL('image/png'); a.click();
+    // Small delay between downloads to avoid browser blocking
+    await new Promise(r=>setTimeout(r,120));
+  }
+}
+
+async function exportPage1PNG() {
+  const g=getGeom(), ps=getPageSize();
+  const perPage=calcPerPage(ps,g);
+  const pages=paginate(doc.staves,perPage);
+  if (!pages.length) return;
+  const canvas=await renderPageToPNG(pages[0].staves,1,g);
+  const a=document.createElement('a');
+  a.download=pageFilename(1); a.href=canvas.toDataURL('image/png'); a.click();
+}
+
+function doPrint() {
+  let styleEl=document.getElementById('_ps');
+  if (!styleEl) { styleEl=document.createElement('style'); styleEl.id='_ps'; document.head.appendChild(styleEl); }
+  styleEl.textContent=buildPrintCSS();
+  window.print();
+}
+
+document.getElementById('btnExportPNG').addEventListener('click', exportAllPNG);
+document.getElementById('miPNGAll').addEventListener('click', exportAllPNG);
+document.getElementById('miPNG1').addEventListener('click', exportPage1PNG);
+document.getElementById('btnPrint').addEventListener('click', doPrint);
+document.getElementById('miPrint').addEventListener('click', doPrint);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// RESIZE
+// ─────────────────────────────────────────────────────────────────────────────
+let resizeTimer;
+window.addEventListener('resize', ()=>{ clearTimeout(resizeTimer); resizeTimer=setTimeout(render,80); });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────────────────────────────────
+render();
+</script>
+</body>
+</html>
