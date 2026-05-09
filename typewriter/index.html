@@ -345,8 +345,11 @@ import { createCursorState, moveLeft, moveRight, scrollUp, scrollDown,
          setMarginLeft, setMarginRight, advanceCursor, carriageReturn,
          cursorPageLocal, cursorOnPage, cursorPartiallyOnPage } from './src/cursorState.mjs';
 import { createPage, addPageAfter, deletePage, nearestPageIndex, computePageLayouts } from './src/pageModel.mjs';
-import { FONTS, FONT_SIZES, measureChar, stampGlyph, paintCorrection, flattenLayers } from './src/glyphPipeline.mjs';
+import { FONTS, FONT_SIZES, measureChar, measureCharCell, stampGlyph, paintCorrection, flattenLayers } from './src/glyphPipeline.mjs';
 import { createTabStops, toggleTabStop, tabAdvance } from './src/tabStops.mjs';
+import { scrollUpMulti, scrollDownMulti } from './src/cursorState.mjs';
+import { rulerOrigin, rulerXToPageLocal, pageLocalToRulerX, rulerLabelAt, B4_W_PX } from './src/rulerCoords.mjs';
+import { DEAD_KEY_CHAR } from './src/deadKeys.mjs';
 
 // ── STATE ──────────────────────────────────────────────────────────────────
 let state = {
@@ -381,14 +384,12 @@ const rulerLeftCanvas= document.getElementById('ruler-left');
 function measureCurrentFont() {
   const font = FONTS[state.fontKey];
   const ptSize = FONT_SIZES[state.fontSizeKey];
-  const pxSize = ptSize * (96 / 72);
-  // Use a temporary canvas
   const tmp = document.createElement('canvas');
   const ctx = tmp.getContext('2d');
-  ctx.font = `${pxSize}px ${font.family}`;
-  const m = ctx.measureText('M');
-  state.charW = Math.ceil(m.width);
-  state.charH = Math.ceil(pxSize * 1.2);
+  const cell = measureCharCell(font.family, ptSize, ctx);
+  state.charW   = cell.w;
+  state.charH   = cell.h;
+  state.topPad  = cell.topPad; // vertical offset so stamp sits inside cursor border
 }
 
 // ── INIT NEW DOCUMENT ───────────────────────────────────────────────────
@@ -539,37 +540,39 @@ function drawRulers() {
   rtCtx.textAlign   = 'center';
 
   const cmPx = MM_TO_PX * 10;
-  // Ruler always spans B4 width (250mm) centered on the page's center X
-  const B4_W_PX = Math.round(250 * MM_TO_PX);
-  const pageCenterX = pageLeft + (state.pages[0].widthPx / 2);
-  const rulerLeft  = pageCenterX - B4_W_PX / 2;
-  const rulerRight = pageCenterX + B4_W_PX / 2;
+  // Ruler always spans B4 width centered on the page's horizontal center.
+  // Labels are signed cm from page center (negative = left, positive = right).
+  const { rulerLeft, pageCenterX } = rulerOrigin(pageLeft, state.pages[0].widthPx);
+  const rulerRight = rulerLeft + B4_W_PX;
+
   for (let x = rulerLeft; x <= rulerRight; x += cmPx / 2) {
-    const isCm = Math.abs((x - rulerLeft) % cmPx) < 0.5;
+    const offsetFromCenter = x - pageCenterX;
+    const isCm  = Math.abs(offsetFromCenter % cmPx) < 0.5;
+    const isCenter = Math.abs(offsetFromCenter) < 0.5;
     const tickH = isCm ? 10 : 6;
     rtCtx.beginPath();
     rtCtx.moveTo(x, RULER_H - tickH);
     rtCtx.lineTo(x, RULER_H);
-    rtCtx.strokeStyle = isCm ? '#5a5855' : '#3d3b37';
+    rtCtx.strokeStyle = isCenter ? '#c8a45a' : isCm ? '#5a5855' : '#3d3b37';
     rtCtx.stroke();
     if (isCm) {
-      const label = Math.round((x - rulerLeft) / cmPx);
-      if (label > 0) rtCtx.fillText(label, x, RULER_H - 11);
+      const label = rulerLabelAt(x, rulerLeft, pageCenterX, cmPx);
+      rtCtx.fillText(label === 0 ? '0' : (label > 0 ? '+' + label : String(label)), x, RULER_H - 11);
     }
   }
 
-  // Margin stops
+  // Margin stops: vertical amber lines at page-local positions
   const s = state.cursor;
-  const mlX = pageLeft + s.marginLeft;
-  const mrX = pageLeft + s.marginRight;
+  const mlX = pageLocalToRulerX(s.marginLeft,  rulerLeft, pageLeft);
+  const mrX = pageLocalToRulerX(s.marginRight, rulerLeft, pageLeft);
   rtCtx.fillStyle = '#c8a45a';
   rtCtx.fillRect(mlX - 1, 0, 2, RULER_H);
   rtCtx.fillRect(mrX - 1, 0, 2, RULER_H);
 
-  // Tab stop triangles (pointing down, amber)
+  // Tab stop triangles (pointing down)
   rtCtx.fillStyle = '#c8a45a';
   for (const stop of state.tabStops) {
-    const tx = pageLeft + stop;
+    const tx = pageLocalToRulerX(stop, rulerLeft, pageLeft);
     rtCtx.beginPath();
     rtCtx.moveTo(tx - 4, 0);
     rtCtx.lineTo(tx + 4, 0);
@@ -638,7 +641,7 @@ sink.addEventListener('keydown', (e) => {
   // Navigation
   if (e.key === 'ArrowLeft')  { e.preventDefault(); state.cursor = moveLeft(s); renderAll(); return; }
   if (e.key === 'ArrowRight') { e.preventDefault(); state.cursor = moveRight(s); renderAll(); return; }
-  if (e.key === 'ArrowUp')    { e.preventDefault(); state.cursor = scrollUp(s); renderAll(); return; }
+  if (e.key === 'ArrowUp')    { e.preventDefault(); state.cursor = scrollUpMulti(s, totalStackHeight()); renderAll(); return; }
   if (e.key === 'ArrowDown')  { e.preventDefault(); state.cursor = scrollDown(s); renderAll(); return; }
 
   // Page management
@@ -649,7 +652,13 @@ sink.addEventListener('keydown', (e) => {
   if (e.key === 'Backspace') { e.preventDefault(); state.cursor = moveLeft(s); renderAll(); return; }
 
   // Enter: carriage return — scroll paper up one line AND reset to left margin
-  if (e.key === 'Enter') { e.preventDefault(); state.cursor = carriageReturn(s); renderAll(); return; }
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    // carriageReturn uses scrollUp internally; override with multi-page version
+    const scrolled = scrollUpMulti(s, totalStackHeight());
+    state.cursor = { ...scrolled, cursorX: s.pageX + s.marginLeft };
+    renderAll(); return;
+  }
 
   // Tab: advance to next tab stop, or right margin if none
   if (e.key === 'Tab') { e.preventDefault();
@@ -674,33 +683,47 @@ sink.addEventListener('keypress', (e) => {
 });
 
 // ── COMPOSITION (dead keys, IME, AltGr composed chars) ───────────────────
-// Strategy:
-//   compositionstart  → set flag, suppress keypress
-//   compositionupdate → ignore (partial IME string)
-//   compositionend    → stamp final char(s); dead-key diacritics don't advance
+// Dead key strategy (typewriter behaviour):
+//   - Intercept dead key in keydown via DEAD_KEY_CHAR lookup.
+//   - Stamp the bare diacritic immediately, do NOT advance cursor.
+//   - Cancel the IME composition so the OS doesn't compose a precomposed char.
+//   - For true IME (CJK etc.) use compositionend as before.
 let composing = false;
+let deadKeyConsumed = false; // set true when we handle a dead key in keydown
 
-// Unicode ranges that are standalone diacritics / combining marks
-// (bare accent = dead key discharged without a following base letter)
-const DEAD_KEY_RE = /^[\u0060\u00b4\u005e\u007e\u00a8\u02c6\u02dc\u02d9\u02dd\u02db\u02da\u02c7\u00b8\u02cd\u0384\u0385]$/;
+sink.addEventListener('keydown', (e) => {
+  // Dead key detection: e.key is 'Dead' on Windows/Linux, or the diacritic char on macOS
+  const diacritic = DEAD_KEY_CHAR[e.key] ?? DEAD_KEY_CHAR['Dead' + e.key] ?? null;
+  if (diacritic !== null) {
+    e.preventDefault();
+    deadKeyConsumed = true;
+    // Stamp diacritic immediately, no cursor advance (typewriter dead-key behaviour)
+    typeChar(diacritic, /* isDead= */ true);
+    return;
+  }
+  deadKeyConsumed = false;
+}, /* capture= */ true); // capture so this fires before compositionstart
 
-sink.addEventListener('compositionstart', () => { composing = true; });
+sink.addEventListener('compositionstart', (e) => {
+  if (deadKeyConsumed) {
+    // We already handled this; the composition is the follow-up base letter.
+    // Let it fall through to compositionend where we stamp the base char.
+  }
+  composing = true;
+});
 sink.addEventListener('compositionupdate', () => { /* suppress */ });
 sink.addEventListener('compositionend', (e) => {
   composing = false;
-  sink.value = ''; // clear the textarea buffer so it doesn't accumulate
+  deadKeyConsumed = false;
+  sink.value = '';
   const data = e.data;
   if (!data) return;
 
-  // Each character in the composed result is stamped individually.
-  // If the entire result is a single bare diacritic, treat as dead key (no advance).
-  const isDead = data.length === 1 && DEAD_KEY_RE.test(data);
-
+  // For true IME results (CJK, accented from composition): stamp each char normally.
+  // The diacritic was already stamped in keydown; if data is a precomposed char like é,
+  // stamp only the base letter (strip combining). If data is multi-char, stamp all.
   for (let i = 0; i < data.length; i++) {
-    const ch      = data[i];
-    const isLast  = i === data.length - 1;
-    // Only the last char of a dead-key sequence skips advance; multi-char results always advance
-    typeChar(ch, isDead && isLast && data.length === 1);
+    typeChar(data[i], false);
   }
 });
 
@@ -751,7 +774,7 @@ function typeChar(char, isDead = false) {
       ? { x: 0, y: 0, w: page.widthPx, h: page.heightPx }
       : null;
 
-    stampGlyph(char, font.family, pxSize, editCtx, localX, localY, s.charWidthPx, s.charHeightPx, clip);
+    stampGlyph(char, font.family, pxSize, editCtx, localX, localY, s.charWidthPx, s.charHeightPx, clip, state.topPad ?? 0);
     blitPage(pageIdx);
     state.isDirty = true;
   }
@@ -860,15 +883,60 @@ function applyCorrection(e) {
 // Interior → tab stop toggle
 const MARGIN_ZONE = 0.15;
 
-rulerTopCanvas.addEventListener('click', e => {
-  if (state.layouts.length === 0) return;
+// Helper: resolve ruler click to page-local x, returns null if outside page
+function rulerClickPageLocal(offsetX) {
+  if (state.layouts.length === 0) return null;
+  const layout0  = state.layouts[0];
+  const pageLeft = layout0.x;
+  const pageWidth = state.pages[0].widthPx;
+  const { rulerLeft } = rulerOrigin(pageLeft, pageWidth);
+  const pageLocal = rulerXToPageLocal(offsetX, rulerLeft, pageLeft);
+  if (pageLocal < 0 || pageLocal > pageWidth) return null;
+  return pageLocal;
+}
+
+// Floating ruler marker: shows what would be set and where, follows mouse
+const rulerMarker = document.createElement('div');
+rulerMarker.style.cssText = [
+  'position:fixed',
+  `top:${parseInt(getComputedStyle(document.documentElement).getPropertyValue('--toolbar-h') || '42')}px`,
+  'pointer-events:none',
+  'z-index:95',
+  'display:none',
+  'transform:translateX(-50%)',
+  'font-size:9px',
+  'letter-spacing:0.05em',
+  'color:#c8a45a',
+  'text-align:center',
+  'white-space:nowrap',
+].join(';');
+document.body.appendChild(rulerMarker);
+
+rulerTopCanvas.addEventListener('mousemove', e => {
+  const pageLocal = rulerClickPageLocal(e.offsetX);
+  if (pageLocal === null) { rulerMarker.style.display = 'none'; return; }
   const layout0   = state.layouts[0];
   const pageLeft  = layout0.x;
   const pageWidth = state.pages[0].widthPx;
-  const clickX    = e.offsetX;
-  const pageLocal = clickX - pageLeft;
-  if (pageLocal < 0 || pageLocal > pageWidth) return;
+  const { rulerLeft, pageCenterX } = rulerOrigin(pageLeft, pageWidth);
+  const cmPx = MM_TO_PX * 10;
+  const cmFromCenter = ((pageLocal + pageLeft - pageCenterX) / cmPx).toFixed(1);
+  const leftZone  = pageWidth * MARGIN_ZONE;
+  const rightZone = pageWidth * (1 - MARGIN_ZONE);
+  const kind = pageLocal <= leftZone ? '◄ L-margin' : pageLocal >= rightZone ? 'R-margin ►' : '↓ tab';
+  // Position marker above ruler, aligned to cursor x in viewport
+  const vpX = RULER_W + e.offsetX;
+  rulerMarker.style.left    = vpX + 'px';
+  rulerMarker.style.top     = (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--toolbar-h') || '42') + 2) + 'px';
+  rulerMarker.style.display = 'block';
+  rulerMarker.textContent   = `${kind} ${cmFromCenter > 0 ? '+' : ''}${cmFromCenter}cm`;
+});
+rulerTopCanvas.addEventListener('mouseleave', () => { rulerMarker.style.display = 'none'; });
 
+rulerTopCanvas.addEventListener('click', e => {
+  const pageLocal = rulerClickPageLocal(e.offsetX);
+  if (pageLocal === null) return;
+  const pageWidth = state.pages[0].widthPx;
   const leftZone  = pageWidth * MARGIN_ZONE;
   const rightZone = pageWidth * (1 - MARGIN_ZONE);
 
@@ -877,12 +945,18 @@ rulerTopCanvas.addEventListener('click', e => {
   } else if (pageLocal >= rightZone) {
     state.cursor = setMarginRight(state.cursor, pageLocal);
   } else {
-    // Interior: toggle tab stop
     state.tabStops = toggleTabStop(state.tabStops, pageLocal);
   }
   drawRulers();
   positionCursor();
 });
+
+// Total height of page stack including gaps (for scroll bounds)
+function totalStackHeight() {
+  if (state.pages.length === 0) return 0;
+  const GAP = 40;
+  return state.pages.reduce((s, p) => s + p.heightPx, 0) + (state.pages.length - 1) * GAP;
+}
 
 // ── ADD / DELETE PAGE ─────────────────────────────────────────────────────
 function doAddPage() {

@@ -84,3 +84,14 @@ export function cursorPartiallyOnPage(state) {
   return (x + state.charWidthPx > 0) && (y + state.charHeightPx > 0)
     && x < state.pageWidthPx && y < state.pageHeightPx;
 }
+
+// Multi-page scroll: lower bound uses totalStackHeightPx instead of single pageHeightPx.
+// totalStackHeightPx = sum of all page heights + gaps (computed from layouts in index.html).
+export function scrollUpMulti(state, totalStackHeightPx) {
+  const minPaperY = state.viewportHeight * 0.25 - totalStackHeightPx + 1;
+  return { ...state, paperY: Math.max(minPaperY, state.paperY - state.charHeightPx) };
+}
+
+export function scrollDownMulti(state) {
+  return scrollDown(state);
+}
