@@ -1,73 +1,86 @@
-// Cursor state — pure functions, no side effects
-// cursorX / cursorViewportY: viewport coords of cursor top-left
-// paperY: viewport Y of page top edge (scrolls; cursorViewportY is fixed)
-// marginLeft / marginRight: page-local px from page left edge
+// Cursor state: viewport-fixed height, x moves left/right
+// Paper state: scrolls up/down, cursor height stays fixed
+// marginLeft/marginRight are in page-local px coords
 
 export function createCursorState({
   viewportWidth, viewportHeight,
   pageWidthPx, pageHeightPx,
   charWidthPx, charHeightPx,
 }) {
-  const paperY         = Math.round(viewportHeight * (2 / 3));
-  const cursorViewportY = paperY;
-  const pageX           = Math.round((viewportWidth - pageWidthPx) / 2);
+  const initialPaperY = Math.round(viewportHeight * (2/3));
+  const cursorViewportY = initialPaperY;
+  const pageX = Math.round((viewportWidth - pageWidthPx) / 2);
   return {
-    cursorX: pageX, cursorViewportY,
-    paperY,
-    pageX, pageWidthPx, pageHeightPx,
-    charWidthPx, charHeightPx,
-    marginLeft: 0, marginRight: pageWidthPx,
-    viewportWidth, viewportHeight,
+    cursorX: pageX,
+    cursorViewportY,
+    paperY: initialPaperY,
+    pageX,
+    pageWidthPx,
+    pageHeightPx,
+    charWidthPx,
+    charHeightPx,
+    marginLeft: 0,
+    marginRight: pageWidthPx,
+    viewportWidth,
+    viewportHeight,
   };
 }
 
-export function moveLeft(s) {
-  return { ...s, cursorX: Math.max(s.pageX + s.marginLeft, s.cursorX - s.charWidthPx) };
+export function moveLeft(state) {
+  const minX = state.pageX + state.marginLeft;
+  return { ...state, cursorX: Math.max(minX, state.cursorX - state.charWidthPx) };
 }
 
-export function moveRight(s) {
-  return { ...s, cursorX: Math.min(s.pageX + s.marginRight - s.charWidthPx, s.cursorX + s.charWidthPx) };
+export function moveRight(state) {
+  const maxX = state.pageX + state.marginRight - state.charWidthPx;
+  return { ...state, cursorX: Math.min(maxX, state.cursorX + state.charWidthPx) };
 }
 
-export function scrollUp(s) {
-  // Paper moves up (paperY decreases). Clamp: ≥1 char of page must remain visible at 25% vh.
-  const min = s.viewportHeight * 0.25 - s.pageHeightPx + s.charHeightPx;
-  return { ...s, paperY: Math.max(min, s.paperY - s.charHeightPx) };
+export function scrollUp(state) {
+  const minPaperY = state.viewportHeight * 0.25 - state.pageHeightPx + 1;
+  return { ...state, paperY: Math.max(minPaperY, state.paperY - state.charHeightPx) };
 }
 
-export function scrollDown(s) {
-  // Paper moves down. Clamp: top of page ≤ 75% vh.
-  return { ...s, paperY: Math.min(s.viewportHeight * 0.75, s.paperY + s.charHeightPx) };
+export function scrollDown(state) {
+  const maxPaperY = state.viewportHeight * 0.75;
+  return { ...state, paperY: Math.min(maxPaperY, state.paperY + state.charHeightPx) };
 }
 
-export function setMarginLeft(s, pageLocalX) {
-  const clamped  = Math.max(0, Math.min(pageLocalX, s.marginRight - s.charWidthPx));
-  const cursorX  = Math.max(s.pageX + clamped, s.cursorX);
-  return { ...s, marginLeft: clamped, cursorX };
+// Carriage return: scroll paper up one line AND reset cursor to left margin (typewriter CR)
+export function carriageReturn(state) {
+  const scrolled = scrollUp(state);
+  return { ...scrolled, cursorX: state.pageX + state.marginLeft };
 }
 
-export function setMarginRight(s, pageLocalX) {
-  const clamped  = Math.max(s.marginLeft + s.charWidthPx, Math.min(pageLocalX, s.pageWidthPx));
-  const cursorX  = Math.min(s.pageX + clamped - s.charWidthPx, s.cursorX);
-  return { ...s, marginRight: clamped, cursorX };
+export function setMarginLeft(state, pageLocalX) {
+  const clamped = Math.max(0, Math.min(pageLocalX, state.marginRight - state.charWidthPx));
+  const minCursorX = state.pageX + clamped;
+  const cursorX = state.cursorX < minCursorX ? minCursorX : state.cursorX;
+  return { ...state, marginLeft: clamped, cursorX };
 }
 
-export function advanceCursor(s) { return moveRight(s); }
-
-// Cursor top-left in page-local coordinates
-export function cursorPageLocal(s) {
-  return { x: s.cursorX - s.pageX, y: s.cursorViewportY - s.paperY };
+export function setMarginRight(state, pageLocalX) {
+  const clamped = Math.max(state.marginLeft + state.charWidthPx, Math.min(pageLocalX, state.pageWidthPx));
+  const maxCursorX = state.pageX + clamped - state.charWidthPx;
+  const cursorX = state.cursorX > maxCursorX ? maxCursorX : state.cursorX;
+  return { ...state, marginRight: clamped, cursorX };
 }
 
-export function cursorOnPage(s) {
-  const { x, y } = cursorPageLocal(s);
+export function advanceCursor(state) { return moveRight(state); }
+
+export function cursorPageLocal(state) {
+  return { x: state.cursorX - state.pageX, y: state.cursorViewportY - state.paperY };
+}
+
+export function cursorOnPage(state) {
+  const { x, y } = cursorPageLocal(state);
   return x >= 0 && y >= 0
-      && x + s.charWidthPx  <= s.pageWidthPx
-      && y + s.charHeightPx <= s.pageHeightPx;
+    && x + state.charWidthPx <= state.pageWidthPx
+    && y + state.charHeightPx <= state.pageHeightPx;
 }
 
-export function cursorPartiallyOnPage(s) {
-  const { x, y } = cursorPageLocal(s);
-  return x + s.charWidthPx > 0 && y + s.charHeightPx > 0
-      && x < s.pageWidthPx && y < s.pageHeightPx;
+export function cursorPartiallyOnPage(state) {
+  const { x, y } = cursorPageLocal(state);
+  return (x + state.charWidthPx > 0) && (y + state.charHeightPx > 0)
+    && x < state.pageWidthPx && y < state.pageHeightPx;
 }

@@ -1,4 +1,4 @@
-// Minimal red/green test runner — zero deps
+// Minimal red/green test runner
 let passed = 0, failed = 0;
 const failures = [];
 
@@ -9,13 +9,13 @@ export function it(name, fn) {
 }
 export function expect(val) {
   return {
-    toBe:             (exp) => { if (val !== exp) throw new Error(`expected ${JSON.stringify(exp)}, got ${JSON.stringify(val)}`); },
-    toEqual:          (exp) => { if (JSON.stringify(val) !== JSON.stringify(exp)) throw new Error(`expected ${JSON.stringify(exp)}, got ${JSON.stringify(val)}`); },
-    toBeCloseTo:      (exp, d=2) => { if (Math.abs(val-exp) >= 10**-d) throw new Error(`expected ~${exp}, got ${val}`); },
-    toBeTruthy:       ()    => { if (!val) throw new Error(`expected truthy, got ${val}`); },
-    toBeFalsy:        ()    => { if (val)  throw new Error(`expected falsy, got ${val}`); },
-    toBeGreaterThan:  (exp) => { if (val <= exp) throw new Error(`expected > ${exp}, got ${val}`); },
-    toBeLessThan:     (exp) => { if (val >= exp) throw new Error(`expected < ${exp}, got ${val}`); },
+    toBe: (exp) => { if (val !== exp) throw new Error(`expected ${JSON.stringify(exp)}, got ${JSON.stringify(val)}`); },
+    toEqual: (exp) => { if (JSON.stringify(val) !== JSON.stringify(exp)) throw new Error(`expected ${JSON.stringify(exp)}, got ${JSON.stringify(val)}`); },
+    toBeCloseTo: (exp, d=2) => { if (Math.abs(val-exp) > 10**-d) throw new Error(`expected ~${exp}, got ${val}`); },
+    toBeTruthy: () => { if (!val) throw new Error(`expected truthy, got ${val}`); },
+    toBeFalsy: () => { if (val) throw new Error(`expected falsy, got ${val}`); },
+    toBeGreaterThan: (exp) => { if (val <= exp) throw new Error(`expected > ${exp}, got ${val}`); },
+    toBeLessThan: (exp) => { if (val >= exp) throw new Error(`expected < ${exp}, got ${val}`); },
     toBeLessThanOrEqual: (exp) => { if (val > exp) throw new Error(`expected <= ${exp}, got ${val}`); },
   };
 }

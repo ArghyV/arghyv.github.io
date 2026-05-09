@@ -5,28 +5,30 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>type(rä)writer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Anonymous+Pro:ital,wght@0,400;0,700;1,400&family=Arimo:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Anonymous+Pro:ital,wght@0,400;0,700;1,400&family=EB+Garamond:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.min.mjs" type="module"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:             #2a2825;
-  --toolbar-bg:     #1c1b19;
+  --bg: #2a2825;
+  --toolbar-bg: #1c1b19;
   --toolbar-border: #3d3b37;
-  --ruler-bg:       #232220;
-  --ruler-text:     #6b6760;
-  --ruler-stop:     #c8a45a;
-  --btn-hover:      #423f35;
-  --btn-text:       #c4bfb5;
-  --btn-active:     #c8a45a;
-  --cursor-color:   rgba(200,164,90,0.8);
-  --cursor-blink:   rgba(200,164,90,0);
-  --shadow:         rgba(0,0,0,0.6);
+  --ruler-bg: #232220;
+  --ruler-text: #6b6760;
+  --ruler-mark: #4a4845;
+  --ruler-stop: #c8a45a;
+  --btn-bg: #333128;
+  --btn-hover: #423f35;
+  --btn-text: #c4bfb5;
+  --btn-active: #c8a45a;
+  --cursor-color: rgba(200, 164, 90, 0.8);
+  --cursor-blink: rgba(200, 164, 90, 0);
+  --shadow: rgba(0,0,0,0.6);
   --toolbar-h: 42px;
-  --ruler-w:   32px;
-  --ruler-h:   24px;
+  --ruler-w: 32px;
+  --ruler-h: 24px;
 }
 
 html, body {
@@ -47,25 +49,42 @@ html, body {
   padding: 0 8px; gap: 2px;
   z-index: 100;
 }
+
 #toolbar-title {
   font-size: 13px; letter-spacing: 0.08em;
   color: var(--ruler-stop);
   padding: 0 10px 0 4px;
   border-right: 1px solid var(--toolbar-border);
-  margin-right: 4px; white-space: nowrap;
+  margin-right: 4px;
+  white-space: nowrap;
 }
+
 .tb-btn {
   background: none; border: none; cursor: pointer;
-  color: var(--btn-text); padding: 5px 9px;
+  color: var(--btn-text);
+  padding: 5px 9px;
   font-size: 11px; letter-spacing: 0.06em;
-  text-transform: uppercase; border-radius: 3px;
-  transition: background 0.1s, color 0.1s; white-space: nowrap;
+  text-transform: uppercase;
+  border-radius: 3px;
+  transition: background 0.1s, color 0.1s;
+  white-space: nowrap;
 }
-.tb-btn:hover  { background: var(--btn-hover); }
+.tb-btn:hover { background: var(--btn-hover); }
 .tb-btn.active { color: var(--btn-active); background: var(--btn-hover); }
 .tb-btn:disabled { opacity: 0.35; cursor: default; }
-.tb-sep { width: 1px; height: 20px; background: var(--toolbar-border); margin: 0 4px; flex-shrink: 0; }
-#status-bar { margin-left: auto; font-size: 10px; color: var(--ruler-text); letter-spacing: 0.05em; padding-right: 8px; }
+
+.tb-sep {
+  width: 1px; height: 20px;
+  background: var(--toolbar-border);
+  margin: 0 4px; flex-shrink: 0;
+}
+
+#status-bar {
+  margin-left: auto;
+  font-size: 10px; color: var(--ruler-text);
+  letter-spacing: 0.05em;
+  padding-right: 8px;
+}
 
 /* ── RULERS ── */
 #ruler-top {
@@ -78,8 +97,9 @@ html, body {
 }
 #ruler-left {
   position: fixed;
-  top: calc(var(--toolbar-h) + var(--ruler-h)); left: 0;
-  width: var(--ruler-w); bottom: 0;
+  top: var(--toolbar-h); left: 0;
+  width: var(--ruler-w);
+  bottom: 0;
   background: var(--ruler-bg);
   border-right: 1px solid var(--toolbar-border);
   z-index: 90; overflow: hidden;
@@ -94,55 +114,75 @@ html, body {
   z-index: 95;
 }
 
-/* ── VIEWPORT ── */
+/* ── MAIN CANVAS AREA ── */
 #viewport {
   position: fixed;
   top: calc(var(--toolbar-h) + var(--ruler-h));
   left: var(--ruler-w); right: 0; bottom: 0;
-  overflow: hidden; cursor: default;
+  overflow: hidden;
+  cursor: default;
 }
 
-/* ── PAGES ── */
+/* ── PAGE LAYER WRAPPER ── */
 .page-wrapper {
   position: absolute;
   box-shadow: 0 4px 32px var(--shadow), 0 1px 8px var(--shadow);
 }
 .page-canvas { position: absolute; top: 0; left: 0; display: block; }
+
+/* Page number badge */
 .page-badge {
-  position: absolute; bottom: -22px; left: 0; right: 0;
-  text-align: center; font-size: 9px; letter-spacing: 0.1em;
-  color: var(--ruler-text); pointer-events: none; text-transform: uppercase;
+  position: absolute;
+  bottom: -22px; left: 0; right: 0;
+  text-align: center;
+  font-size: 9px; letter-spacing: 0.1em;
+  color: var(--ruler-text);
+  pointer-events: none;
+  text-transform: uppercase;
 }
-#pages-container { position: absolute; transform-origin: top center; }
+
+/* Viewport scale container */
+#pages-container {
+  position: absolute;
+  transform-origin: top center;
+}
 
 /* ── CURSOR ── */
 #cursor {
-  position: absolute; pointer-events: none; z-index: 50;
-  border: 1.5px solid var(--cursor-color);
-  background: rgba(200,164,90,0.06);
+  position: absolute;
+  pointer-events: none;
+  z-index: 200;
+  border: 2px solid var(--cursor-color);
+  background: transparent;
   animation: blink 1.1s step-end infinite;
-  mix-blend-mode: screen;
 }
 @keyframes blink {
-  0%, 100% { border-color: var(--cursor-color); background: rgba(200,164,90,0.06); }
-  50%       { border-color: var(--cursor-blink); background: transparent; }
+  0%, 100% { border-color: var(--cursor-color); opacity: 1; }
+  50%       { border-color: var(--cursor-blink); opacity: 0; }
 }
-#cursor.typing { animation: none; border-color: var(--cursor-color); background: rgba(200,164,90,0.1); }
+#cursor.typing { animation: none; border-color: var(--cursor-color); opacity: 1; }
 
 /* ── MODALS ── */
 .modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.72);
-  display: flex; align-items: center; justify-content: center; z-index: 200;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.72);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
 }
 .modal-overlay.hidden { display: none; }
+
 .modal {
-  background: var(--toolbar-bg); border: 1px solid var(--toolbar-border);
-  border-radius: 4px; padding: 28px 32px; min-width: 340px;
+  background: var(--toolbar-bg);
+  border: 1px solid var(--toolbar-border);
+  border-radius: 4px;
+  padding: 28px 32px;
+  min-width: 340px;
   box-shadow: 0 16px 64px rgba(0,0,0,0.8);
 }
 .modal h2 {
-  font-size: 13px; letter-spacing: 0.1em; text-transform: uppercase;
-  color: var(--ruler-stop); margin-bottom: 22px;
+  font-size: 13px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ruler-stop);
+  margin-bottom: 22px;
 }
 .modal label {
   display: block; font-size: 10px; letter-spacing: 0.08em;
@@ -153,22 +193,49 @@ html, body {
   width: 100%; padding: 7px 10px;
   background: var(--bg); border: 1px solid var(--toolbar-border);
   border-radius: 3px; color: var(--btn-text);
-  font-family: inherit; font-size: 12px; outline: none;
+  font-family: inherit; font-size: 12px;
+  outline: none;
 }
-.modal input:focus, .modal select:focus { border-color: var(--ruler-stop); }
-.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 24px; }
-.modal-actions .tb-btn { padding: 7px 16px; font-size: 11px; }
-.modal-actions .tb-btn.primary { background: var(--ruler-stop); color: var(--toolbar-bg); }
-.modal-actions .tb-btn.primary:hover { background: #d4b06a; }
+.modal input:focus, .modal select:focus {
+  border-color: var(--ruler-stop);
+}
+.modal-actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+  margin-top: 24px;
+}
+.modal-actions .tb-btn {
+  padding: 7px 16px; font-size: 11px;
+}
+.modal-actions .tb-btn.primary {
+  background: var(--ruler-stop); color: var(--toolbar-bg);
+}
+.modal-actions .tb-btn.primary:hover {
+  background: #d4b06a;
+}
 
-/* ── CORRECTION BRUSH ── */
+/* Warning stripe */
+.modal-warning {
+  background: rgba(200, 164, 90, 0.12);
+  border: 1px solid rgba(200, 164, 90, 0.4);
+  border-radius: 3px;
+  padding: 8px 12px; margin-top: 14px;
+  font-size: 11px; color: var(--ruler-stop);
+  letter-spacing: 0.03em;
+}
+.modal-warning.hidden { display: none; }
+
+/* Correction cursor */
 body.correction-mode { cursor: none; }
-#correction-brush { position: absolute; pointer-events: none; z-index: 60; display: none; }
+#correction-brush {
+  position: absolute; pointer-events: none; z-index: 60;
+  display: none;
+}
 body.correction-mode #correction-brush { display: block; }
 </style>
 </head>
 <body>
 
+<!-- TOOLBAR -->
 <div id="toolbar">
   <span id="toolbar-title">type(rä)writer</span>
   <button class="tb-btn" id="btn-new">New</button>
@@ -181,13 +248,15 @@ body.correction-mode #correction-brush { display: block; }
   <button class="tb-btn" id="btn-del-page">Delete Page</button>
   <div class="tb-sep"></div>
   <button class="tb-btn" id="btn-correction">Correction</button>
-  <div id="status-bar">A4 · Courier Prime · 12pt</div>
+  <div id="status-bar">A4 · Prestige Elite · 12pt</div>
 </div>
 
+<!-- RULERS -->
 <div id="ruler-corner"></div>
 <canvas id="ruler-top"></canvas>
 <canvas id="ruler-left"></canvas>
 
+<!-- MAIN VIEWPORT -->
 <div id="viewport">
   <div id="pages-container"></div>
   <div id="cursor"></div>
@@ -212,10 +281,10 @@ body.correction-mode #correction-brush { display: block; }
     </select>
     <label>Font</label>
     <select id="new-font">
-      <option value="prestige">Courier Prime</option>
-      <option value="gothic">Anonymous Pro</option>
-      <option value="univers">Arimo</option>
-      <option value="bembo">EB Garamond</option>
+      <option value="prestige">Prestige Elite</option>
+      <option value="gothic">Letter Gothic</option>
+      <option value="univers">Univers</option>
+      <option value="bembo">Bembo</option>
     </select>
     <label>Font Size</label>
     <select id="new-fontsize">
@@ -237,7 +306,7 @@ body.correction-mode #correction-brush { display: block; }
     <select id="export-format">
       <option value="pdf">PDF</option>
       <option value="jpg">JPEG</option>
-      <option value="gif">GIF (PNG data)</option>
+      <option value="gif">GIF</option>
     </select>
     <div class="modal-actions">
       <button class="tb-btn" id="export-cancel">Cancel</button>
@@ -250,7 +319,7 @@ body.correction-mode #correction-brush { display: block; }
 <div class="modal-overlay hidden" id="modal-unsaved">
   <div class="modal">
     <h2>Unsaved Changes</h2>
-    <p style="font-size:12px;color:var(--btn-text);line-height:1.5;">Export before continuing?</p>
+    <p style="font-size:12px; color:var(--btn-text); line-height:1.5;">Export before continuing?</p>
     <div class="modal-actions">
       <button class="tb-btn" id="unsaved-cancel">Cancel</button>
       <button class="tb-btn" id="unsaved-discard">Don't Export</button>
@@ -263,7 +332,7 @@ body.correction-mode #correction-brush { display: block; }
 <div class="modal-overlay hidden" id="modal-warning">
   <div class="modal">
     <h2>Page Size Adjusted</h2>
-    <p style="font-size:12px;color:var(--btn-text);line-height:1.6;" id="warning-text"></p>
+    <p style="font-size:12px; color:var(--btn-text); line-height:1.6;" id="warning-text"></p>
     <div class="modal-actions">
       <button class="tb-btn primary" id="warning-ok">Continue</button>
     </div>
@@ -271,143 +340,172 @@ body.correction-mode #correction-brush { display: block; }
 </div>
 
 <script type="module">
-import { MM_TO_PX, getSizePx, resolveImportedSize } from './src/paperSizes.mjs';
+import { PAPER_SIZES, MM_TO_PX, mmToPx, getSizePx, resolveImportedSize } from './src/paperSizes.mjs';
 import { createCursorState, moveLeft, moveRight, scrollUp, scrollDown,
-         setMarginLeft, setMarginRight, advanceCursor } from './src/cursorState.mjs';
+         setMarginLeft, setMarginRight, advanceCursor, carriageReturn,
+         cursorPageLocal, cursorOnPage, cursorPartiallyOnPage } from './src/cursorState.mjs';
 import { createPage, addPageAfter, deletePage, nearestPageIndex, computePageLayouts } from './src/pageModel.mjs';
 import { FONTS, FONT_SIZES, measureChar, stampGlyph, paintCorrection, flattenLayers } from './src/glyphPipeline.mjs';
 import { createTabStops, toggleTabStop, tabAdvance } from './src/tabStops.mjs';
 
-// ── LAYOUT CONSTANTS (match CSS :root vars) ────────────────────────────────
-const RULER_W  = 32;
-const RULER_H  = 24;
-const TOOLBAR_H = 42;
-
-// ── DOM REFS ───────────────────────────────────────────────────────────────
-const viewport        = document.getElementById('viewport');
-const pagesContainer  = document.getElementById('pages-container');
-const cursorEl        = document.getElementById('cursor');
-const corrBrush       = document.getElementById('correction-brush');
-const statusBar       = document.getElementById('status-bar');
-const rulerTopCanvas  = document.getElementById('ruler-top');
-const rulerLeftCanvas = document.getElementById('ruler-left');
-
 // ── STATE ──────────────────────────────────────────────────────────────────
 let state = {
-  pages: [], layouts: [],
+  pages: [],
+  layouts: [],       // computed each frame
   cursor: null,
-  fontKey: 'prestige', fontSizeKey: 'large',
-  filename: 'document', sizeName: 'A4',
+  fontKey: 'prestige',
+  fontSizeKey: 'large',
+  filename: 'document',
+  sizeName: 'A4',
   charW: 0, charH: 0,
   isDirty: false,
   correctionMode: false,
-  pendingAction: null,
-  tabStops: [],
+  pendingAction: null, // fn to call after unsaved-changes resolution
+  tabStops: [],        // page-local x positions, sorted
 };
 
+// ── VIEWPORT DIMS ──────────────────────────────────────────────────────────
 function vw() { return viewport.offsetWidth; }
 function vh() { return viewport.offsetHeight; }
 
-// ── FONT MEASUREMENT ───────────────────────────────────────────────────────
+// ── DOM REFS ───────────────────────────────────────────────────────────────
+const viewport       = document.getElementById('viewport');
+const pagesContainer = document.getElementById('pages-container');
+const cursorEl       = document.getElementById('cursor');
+const corrBrush      = document.getElementById('correction-brush');
+const statusBar      = document.getElementById('status-bar');
+const rulerTopCanvas = document.getElementById('ruler-top');
+const rulerLeftCanvas= document.getElementById('ruler-left');
+
+// ── FONT MEASUREMENT (via hidden offscreen) ─────────────────────────────
 function measureCurrentFont() {
+  const font = FONTS[state.fontKey];
+  const ptSize = FONT_SIZES[state.fontSizeKey];
+  const pxSize = ptSize * (96 / 72);
+  // Use a temporary canvas
   const tmp = document.createElement('canvas');
-  const { w, h } = measureChar(
-    FONTS[state.fontKey].family,
-    FONT_SIZES[state.fontSizeKey],
-    tmp.getContext('2d'),
-  );
-  state.charW = w;
-  state.charH = h;
+  const ctx = tmp.getContext('2d');
+  ctx.font = `${pxSize}px ${font.family}`;
+  const m = ctx.measureText('M');
+  state.charW = Math.ceil(m.width);
+  state.charH = Math.ceil(pxSize * 1.2);
 }
 
-// ── INIT ───────────────────────────────────────────────────────────────────
+// ── INIT NEW DOCUMENT ───────────────────────────────────────────────────
 function initDocument(sizeName, fontKey, fontSizeKey, filename) {
-  state.fontKey     = fontKey;
+  state.fontKey = fontKey;
   state.fontSizeKey = fontSizeKey;
-  state.filename    = filename;
-  state.sizeName    = sizeName;
+  state.filename = filename;
+  state.sizeName = sizeName;
   measureCurrentFont();
 
   const { w, h } = getSizePx(sizeName);
-  state.pages    = [createPage(w, h)];
-  state.isDirty  = false;
+  const page = createPage(w, h);
+
+  state.pages = [page];
+  state.isDirty = false;
   state.tabStops = createTabStops();
-  state.cursor   = createCursorState({
+
+  const initCursor = createCursorState({
     viewportWidth: vw(), viewportHeight: vh(),
     pageWidthPx: w, pageHeightPx: h,
     charWidthPx: state.charW, charHeightPx: state.charH,
   });
+  state.cursor = initCursor;
 
   renderAll();
   updateStatus();
   focusSink();
 }
 
-// ── PAGE DOM ───────────────────────────────────────────────────────────────
-const pageEls = []; // [{wrapper, bgEl, editEl, badge}]
+// ── PAGE DOM MANAGEMENT ──────────────────────────────────────────────────
+const pageEls = []; // parallel array: [{wrapper, bgCanvas, editCanvas, badge}]
+
+function makePageEl(page) {
+  const wrapper = document.createElement('div');
+  wrapper.className = 'page-wrapper';
+  const bgEl = document.createElement('canvas');
+  bgEl.className = 'page-canvas';
+  bgEl.width = page.widthPx; bgEl.height = page.heightPx;
+  bgEl.style.width = page.widthPx + 'px'; bgEl.style.height = page.heightPx + 'px';
+  const editEl = document.createElement('canvas');
+  editEl.className = 'page-canvas';
+  editEl.width = page.widthPx; editEl.height = page.heightPx;
+  editEl.style.width = page.widthPx + 'px'; editEl.style.height = page.heightPx + 'px';
+  wrapper.style.width = page.widthPx + 'px'; wrapper.style.height = page.heightPx + 'px';
+  const badge = document.createElement('div');
+  badge.className = 'page-badge';
+  wrapper.appendChild(bgEl); wrapper.appendChild(editEl); wrapper.appendChild(badge);
+  return { wrapper, bgEl, editEl, badge };
+}
 
 function syncPageEls() {
-  while (pageEls.length < state.pages.length) {
-    const page    = state.pages[pageEls.length];
-    const wrapper = document.createElement('div');
-    wrapper.className = 'page-wrapper';
-
-    const mkCanvas = () => {
-      const c = document.createElement('canvas');
-      c.className = 'page-canvas';
-      c.width  = page.widthPx;  c.height  = page.heightPx;
-      c.style.width  = page.widthPx  + 'px';
-      c.style.height = page.heightPx + 'px';
-      return c;
-    };
-    const bgEl   = mkCanvas();
-    const editEl = mkCanvas();
-    const badge  = document.createElement('div');
-    badge.className = 'page-badge';
-
-    wrapper.style.width  = page.widthPx  + 'px';
-    wrapper.style.height = page.heightPx + 'px';
-    wrapper.append(bgEl, editEl, badge);
-    pagesContainer.appendChild(wrapper);
-    pageEls.push({ wrapper, bgEl, editEl, badge });
+  // Full rebuild: remove all existing, recreate from state.pages.
+  // This correctly handles new-file (same count, different page objects/sizes).
+  while (pageEls.length) { pageEls.pop().wrapper.remove(); }
+  for (const page of state.pages) {
+    const el = makePageEl(page);
+    pagesContainer.appendChild(el.wrapper);
+    pageEls.push(el);
   }
-  while (pageEls.length > state.pages.length) pageEls.pop().wrapper.remove();
-
   const multi = state.pages.length > 1;
-  pageEls.forEach(({ badge }, i) => { badge.textContent = multi ? `— ${i + 1} —` : ''; });
+  for (let i = 0; i < pageEls.length; i++) {
+    pageEls[i].badge.textContent = multi ? `— ${i + 1} —` : '';
+  }
+}
+
+// Compute viewport scale so widest page fits in viewport width
+function computeViewportScale() {
+  if (state.pages.length === 0) return 1;
+  const widest = Math.max(...state.pages.map(p => p.widthPx));
+  const available = vw() - 32; // 16px padding each side
+  return widest > available ? available / widest : 1;
 }
 
 function blitPage(i) {
+  const page = state.pages[i];
   const { bgEl, editEl } = pageEls[i];
-  const { bgCanvas, editCanvas } = state.pages[i];
-  bgEl.getContext('2d').drawImage(bgCanvas, 0, 0);
-  editEl.getContext('2d').drawImage(editCanvas, 0, 0);
+  const bgCtx = bgEl.getContext('2d');
+  bgCtx.clearRect(0, 0, bgEl.width, bgEl.height);
+  bgCtx.drawImage(page.bgCanvas, 0, 0);
+  const editCtx = editEl.getContext('2d');
+  editCtx.clearRect(0, 0, editEl.width, editEl.height);
+  editCtx.drawImage(page.editCanvas, 0, 0);
 }
 
-function blitAllPages() { state.pages.forEach((_, i) => blitPage(i)); }
+function blitAllPages() {
+  for (let i = 0; i < state.pages.length; i++) blitPage(i);
+}
 
-// ── LAYOUT & RENDER ────────────────────────────────────────────────────────
+// ── LAYOUT & RENDER ──────────────────────────────────────────────────────
 function computeLayouts() {
   state.layouts = computePageLayouts(state.pages, state.cursor.paperY, vw());
 }
 
 function positionPageEls() {
   syncPageEls();
-  const widest    = Math.max(...state.pages.map(p => p.widthPx));
-  const available = vw() - 32;
-  const scale     = widest > available ? available / widest : 1;
+  const scale = computeViewportScale();
   pagesContainer.style.transform = scale < 1 ? `scale(${scale})` : '';
-  state.layouts.forEach(({ x, y }, i) => {
-    pageEls[i].wrapper.style.left = x + 'px';
-    pageEls[i].wrapper.style.top  = y + 'px';
-  });
+  for (let i = 0; i < state.pages.length; i++) {
+    const { wrapper } = pageEls[i];
+    const { x, y } = state.layouts[i];
+    wrapper.style.left = x + 'px';
+    wrapper.style.top  = y + 'px';
+  }
 }
 
 function positionCursor() {
   const s = state.cursor;
-  cursorEl.style.cssText =
-    `left:${s.cursorX}px;top:${s.cursorViewportY}px;` +
-    `width:${s.charWidthPx}px;height:${s.charHeightPx}px`;
+  cursorEl.style.left   = s.cursorX + 'px';
+  cursorEl.style.top    = s.cursorViewportY + 'px';
+  cursorEl.style.width  = s.charWidthPx + 'px';
+  cursorEl.style.height = s.charHeightPx + 'px';
+  // Cursor color: black on paper, white off paper, for maximum visibility
+  const onPaper = cursorOnPage(s) || cursorPartiallyOnPage(s);
+  const col = onPaper ? 'rgba(0,0,0,0.85)' : 'rgba(255,255,255,0.85)';
+  cursorEl.style.setProperty('--cursor-color', col);
+  cursorEl.style.setProperty('--cursor-blink', onPaper ? 'rgba(0,0,0,0)' : 'rgba(255,255,255,0)');
+  cursorEl.style.borderColor = col;
 }
 
 function renderAll() {
@@ -418,250 +516,337 @@ function renderAll() {
   drawRulers();
 }
 
-// ── RULERS ────────────────────────────────────────────────────────────────
-function drawRulers() {
-  if (state.layouts.length === 0) return;
-  const { x: pageLeft, y: pageTop } = state.layouts[0];
-  const pageW = state.pages[0].widthPx;
-  const pageH = state.pages[0].heightPx;
-  const cmPx  = MM_TO_PX * 10;
+// ── RULERS ──────────────────────────────────────────────────────────────
+const RULER_W = 32, RULER_H = 24;
 
+function drawRulers() {
   // Top ruler
-  const rtW = vw();
+  const rtW = rulerTopCanvas.parentElement?.offsetWidth || window.innerWidth - RULER_W;
   rulerTopCanvas.width  = rtW;
   rulerTopCanvas.height = RULER_H;
-  const rt = rulerTopCanvas.getContext('2d');
-  rt.fillStyle = '#232220';
-  rt.fillRect(0, 0, rtW, RULER_H);
+  const rtCtx = rulerTopCanvas.getContext('2d');
+  rtCtx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--ruler-bg').trim() || '#232220';
+  rtCtx.fillRect(0, 0, rtW, RULER_H);
 
-  rt.textAlign = 'center';
-  rt.font      = '8px "Courier Prime", monospace';
-  for (let x = pageLeft; x < pageLeft + pageW; x += cmPx / 2) {
-    const isCm = Math.abs((x - pageLeft) % cmPx) < 0.5;
+  // Find page x offset in viewport
+  if (state.layouts.length === 0) return;
+  const layout0 = state.layouts[0];
+  const pageLeft = layout0.x; // viewport-relative x of page left
+
+  rtCtx.strokeStyle = '#4a4845';
+  rtCtx.fillStyle   = '#6b6760';
+  rtCtx.font        = '8px "Courier Prime", monospace';
+  rtCtx.textAlign   = 'center';
+
+  const cmPx = MM_TO_PX * 10;
+  // Ruler always spans B4 width (250mm) centered on the page's center X
+  const B4_W_PX = Math.round(250 * MM_TO_PX);
+  const pageCenterX = pageLeft + (state.pages[0].widthPx / 2);
+  const rulerLeft  = pageCenterX - B4_W_PX / 2;
+  const rulerRight = pageCenterX + B4_W_PX / 2;
+  for (let x = rulerLeft; x <= rulerRight; x += cmPx / 2) {
+    const isCm = Math.abs((x - rulerLeft) % cmPx) < 0.5;
     const tickH = isCm ? 10 : 6;
-    rt.strokeStyle = isCm ? '#5a5855' : '#3d3b37';
-    rt.beginPath(); rt.moveTo(x, RULER_H - tickH); rt.lineTo(x, RULER_H); rt.stroke();
+    rtCtx.beginPath();
+    rtCtx.moveTo(x, RULER_H - tickH);
+    rtCtx.lineTo(x, RULER_H);
+    rtCtx.strokeStyle = isCm ? '#5a5855' : '#3d3b37';
+    rtCtx.stroke();
     if (isCm) {
-      const label = Math.round((x - pageLeft) / cmPx);
-      if (label > 0) { rt.fillStyle = '#6b6760'; rt.fillText(label, x, RULER_H - 11); }
+      const label = Math.round((x - rulerLeft) / cmPx);
+      if (label > 0) rtCtx.fillText(label, x, RULER_H - 11);
     }
   }
 
   // Margin stops
   const s = state.cursor;
-  rt.fillStyle = '#c8a45a';
-  rt.fillRect(pageLeft + s.marginLeft  - 1, 0, 2, RULER_H);
-  rt.fillRect(pageLeft + s.marginRight - 1, 0, 2, RULER_H);
+  const mlX = pageLeft + s.marginLeft;
+  const mrX = pageLeft + s.marginRight;
+  rtCtx.fillStyle = '#c8a45a';
+  rtCtx.fillRect(mlX - 1, 0, 2, RULER_H);
+  rtCtx.fillRect(mrX - 1, 0, 2, RULER_H);
 
-  // Tab stop triangles (amber, pointing down)
+  // Tab stop triangles (pointing down, amber)
+  rtCtx.fillStyle = '#c8a45a';
   for (const stop of state.tabStops) {
     const tx = pageLeft + stop;
-    rt.beginPath();
-    rt.moveTo(tx - 4, 0); rt.lineTo(tx + 4, 0); rt.lineTo(tx, 7);
-    rt.closePath(); rt.fill();
+    rtCtx.beginPath();
+    rtCtx.moveTo(tx - 4, 0);
+    rtCtx.lineTo(tx + 4, 0);
+    rtCtx.lineTo(tx,     7);
+    rtCtx.closePath();
+    rtCtx.fill();
   }
 
-  // Left ruler
-  const rlH = vh(); // matches CSS: top=toolbar+ruler, bottom=0
+  // Left ruler (vertical)
+  const rlH = rulerLeftCanvas.parentElement?.offsetHeight || window.innerHeight;
   rulerLeftCanvas.width  = RULER_W;
   rulerLeftCanvas.height = rlH;
-  const rl = rulerLeftCanvas.getContext('2d');
-  rl.fillStyle = '#232220';
-  rl.fillRect(0, 0, RULER_W, rlH);
+  const rlCtx = rulerLeftCanvas.getContext('2d');
+  rlCtx.fillStyle = '#232220';
+  rlCtx.fillRect(0, 0, RULER_W, rlH);
+  rlCtx.strokeStyle = '#4a4845';
+  rlCtx.fillStyle   = '#6b6760';
+  rlCtx.font        = '8px "Courier Prime", monospace';
+  rlCtx.textAlign   = 'right';
 
-  rl.textAlign = 'right';
-  rl.font      = '8px "Courier Prime", monospace';
-  for (let y = pageTop; y < pageTop + pageH; y += cmPx / 2) {
+  const pageTop = layout0.y; // viewport-relative
+  for (let y = pageTop; y < pageTop + state.pages[0].heightPx; y += cmPx / 2) {
     const isCm = Math.abs((y - pageTop) % cmPx) < 0.5;
     const tickW = isCm ? 10 : 6;
-    rl.strokeStyle = isCm ? '#5a5855' : '#3d3b37';
-    rl.beginPath(); rl.moveTo(RULER_W - tickW, y); rl.lineTo(RULER_W, y); rl.stroke();
+    rlCtx.beginPath();
+    rlCtx.moveTo(RULER_W - tickW, y);
+    rlCtx.lineTo(RULER_W, y);
+    rlCtx.strokeStyle = isCm ? '#5a5855' : '#3d3b37';
+    rlCtx.stroke();
     if (isCm) {
       const label = Math.round((y - pageTop) / cmPx);
       if (label > 0) {
-        rl.save();
-        rl.fillStyle = '#6b6760';
-        rl.translate(RULER_W - 12, y);
-        rl.rotate(-Math.PI / 2);
-        rl.fillText(label, 0, 0);
-        rl.restore();
+        rlCtx.save();
+        rlCtx.translate(RULER_W - 12, y);
+        rlCtx.rotate(-Math.PI / 2);
+        rlCtx.fillText(label, 0, 0);
+        rlCtx.restore();
       }
     }
   }
 }
 
-// ── STATUS ────────────────────────────────────────────────────────────────
+// ── STATUS BAR ────────────────────────────────────────────────────────────
 function updateStatus() {
-  const { label } = FONTS[state.fontKey];
-  const pt        = FONT_SIZES[state.fontSizeKey];
-  statusBar.textContent = `${state.sizeName} · ${label} · ${pt}pt · ${state.pages.length}p`;
+  const font = FONTS[state.fontKey];
+  const pt   = FONT_SIZES[state.fontSizeKey];
+  statusBar.textContent = `${state.sizeName} · ${font.label} · ${pt}pt · ${state.pages.length}p`;
 }
 
 // ── KEYBOARD SINK ─────────────────────────────────────────────────────────
 const sink = document.createElement('textarea');
-Object.assign(sink.style, { position: 'fixed', opacity: '0', width: '1px', height: '1px', top: '-9999px', left: '-9999px' });
-sink.setAttribute('autocomplete', 'off');
-sink.setAttribute('autocorrect', 'off');
-sink.setAttribute('autocapitalize', 'off');
-sink.setAttribute('spellcheck', 'false');
+sink.style.cssText = 'position:fixed;opacity:0;width:1px;height:1px;top:-9999px;left:-9999px';
+sink.setAttribute('autocomplete','off');
+sink.setAttribute('autocorrect','off');
+sink.setAttribute('autocapitalize','off');
+sink.setAttribute('spellcheck','false');
 document.body.appendChild(sink);
 function focusSink() { sink.focus(); }
 
-// ── KEYDOWN ───────────────────────────────────────────────────────────────
+// ── KEY HANDLING ──────────────────────────────────────────────────────────
 let typingTimer = null;
 
-sink.addEventListener('keydown', e => {
-  if (state.correctionMode) return;
+sink.addEventListener('keydown', (e) => {
   const s = state.cursor;
 
-  if (e.key === 'ArrowLeft')  { e.preventDefault(); state.cursor = moveLeft(s);   renderAll(); return; }
-  if (e.key === 'ArrowRight') { e.preventDefault(); state.cursor = moveRight(s);  renderAll(); return; }
-  if (e.key === 'ArrowUp')    { e.preventDefault(); state.cursor = scrollUp(s);   renderAll(); return; }
+  // Navigation
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); state.cursor = moveLeft(s); renderAll(); return; }
+  if (e.key === 'ArrowRight') { e.preventDefault(); state.cursor = moveRight(s); renderAll(); return; }
+  if (e.key === 'ArrowUp')    { e.preventDefault(); state.cursor = scrollUp(s); renderAll(); return; }
   if (e.key === 'ArrowDown')  { e.preventDefault(); state.cursor = scrollDown(s); renderAll(); return; }
 
-  if (e.ctrlKey && e.key === 't') { e.preventDefault(); doAddPage();    return; }
+  // Page management
+  if (e.ctrlKey && e.key === 't') { e.preventDefault(); doAddPage(); return; }
   if (e.ctrlKey && e.key === 'w') { e.preventDefault(); doDeletePage(); return; }
 
-  if (e.key === 'Backspace') { e.preventDefault(); state.cursor = moveLeft(s);  renderAll(); return; }
-  if (e.key === 'Enter')     { e.preventDefault(); state.cursor = scrollUp(s);  renderAll(); return; }
+  // Backspace: move left (don't erase — typewriter!)
+  if (e.key === 'Backspace') { e.preventDefault(); state.cursor = moveLeft(s); renderAll(); return; }
 
-  if (e.key === 'Tab') {
-    e.preventDefault();
-    const pageLocalX      = s.cursorX - s.pageX;
+  // Enter: carriage return — scroll paper up one line AND reset to left margin
+  if (e.key === 'Enter') { e.preventDefault(); state.cursor = carriageReturn(s); renderAll(); return; }
+
+  // Tab: advance to next tab stop, or right margin if none
+  if (e.key === 'Tab') { e.preventDefault();
+    const s = state.cursor;
+    const pageLocalX = s.cursorX - s.pageX;
     const rightMarginLocal = s.marginRight - s.charWidthPx;
-    const targetLocal      = tabAdvance(state.tabStops, pageLocalX, rightMarginLocal);
+    const targetLocal = tabAdvance(state.tabStops, pageLocalX, rightMarginLocal);
     state.cursor = { ...s, cursorX: s.pageX + targetLocal };
-    renderAll();
+    renderAll(); return;
   }
 });
 
-// ── KEYPRESS + COMPOSITION ────────────────────────────────────────────────
-let composing = false;
-const DEAD_KEY_RE = /^[\u0060\u00b4\u005e\u007e\u00a8\u02c6\u02dc\u02d9\u02dd\u02db\u02da\u02c7\u00b8\u02cd\u0384\u0385]$/;
+sink.addEventListener('keypress', (e) => {
+  if (composing) return;                    // IME in progress, wait for compositionend
+  if (e.ctrlKey || e.metaKey) return;      // let ctrl/cmd shortcuts pass
 
-sink.addEventListener('keypress', e => {
-  if (state.correctionMode || composing || e.ctrlKey || e.metaKey) return;
   const char = e.key;
-  if (!char || char.length !== 1) return;
+  if (!char || char.length !== 1) return;  // filter named keys (Enter, F1, …)
+
   e.preventDefault();
   typeChar(char);
 });
 
-sink.addEventListener('compositionstart',  () => { composing = true; });
-sink.addEventListener('compositionupdate', () => {});
-sink.addEventListener('compositionend', e => {
+// ── COMPOSITION (dead keys, IME, AltGr composed chars) ───────────────────
+// Strategy:
+//   compositionstart  → set flag, suppress keypress
+//   compositionupdate → ignore (partial IME string)
+//   compositionend    → stamp final char(s); dead-key diacritics don't advance
+let composing = false;
+
+// Unicode ranges that are standalone diacritics / combining marks
+// (bare accent = dead key discharged without a following base letter)
+const DEAD_KEY_RE = /^[\u0060\u00b4\u005e\u007e\u00a8\u02c6\u02dc\u02d9\u02dd\u02db\u02da\u02c7\u00b8\u02cd\u0384\u0385]$/;
+
+sink.addEventListener('compositionstart', () => { composing = true; });
+sink.addEventListener('compositionupdate', () => { /* suppress */ });
+sink.addEventListener('compositionend', (e) => {
   composing = false;
-  sink.value = '';
+  sink.value = ''; // clear the textarea buffer so it doesn't accumulate
   const data = e.data;
   if (!data) return;
+
+  // Each character in the composed result is stamped individually.
+  // If the entire result is a single bare diacritic, treat as dead key (no advance).
   const isDead = data.length === 1 && DEAD_KEY_RE.test(data);
+
   for (let i = 0; i < data.length; i++) {
-    typeChar(data[i], isDead && i === 0 && data.length === 1);
+    const ch      = data[i];
+    const isLast  = i === data.length - 1;
+    // Only the last char of a dead-key sequence skips advance; multi-char results always advance
+    typeChar(ch, isDead && isLast && data.length === 1);
   }
 });
 
-// ── TYPE CHAR ─────────────────────────────────────────────────────────────
 function typeChar(char, isDead = false) {
   const s = state.cursor;
   computeLayouts();
 
-  const pageIdx = nearestPageIndex(state.layouts, s.cursorViewportY);
-  const layout  = state.layouts[pageIdx];
-  const page    = state.pages[pageIdx];
-  const localX  = s.cursorX - layout.x;
-  const localY  = s.cursorViewportY - layout.y;
+  // Find page nearest to cursor's fixed viewport Y
+  const pageIdx = nearestPageIndex(
+    state.layouts.map(l => ({ y: l.y, h: l.h })),
+    s.cursorViewportY
+  );
+  const layout = state.layouts[pageIdx];
+  const page   = state.pages[pageIdx];
 
-  const fullyOn   = localX >= 0 && localY >= 0
-                 && localX + s.charWidthPx  <= page.widthPx
-                 && localY + s.charHeightPx <= page.heightPx;
-  const partialOn = localX + s.charWidthPx > 0 && localY + s.charHeightPx > 0
+  // Cursor position in page-local coords (relative to this page's top-left)
+  const localX = s.cursorX - layout.x;
+  const localY = s.cursorViewportY - layout.y;
+
+  // Build a layout-aware cursor snapshot for on-page tests
+  // cursorOnPage/cursorPartiallyOnPage use state.cursor.pageX which is the
+  // global page-center X — but with multi-page, each page may have same x.
+  // Reconstruct a minimal state object aligned to this page's layout.
+  const csLocal = {
+    ...s,
+    pageX:     layout.x,
+    pageWidthPx:  page.widthPx,
+    pageHeightPx: page.heightPx,
+    // paperY: compute so that localY = cursorViewportY - paperY → paperY = cursorViewportY - localY
+    // but we already have localY; just pass through the real values
+  };
+
+  // Manual on-page test using computed locals (avoids stale pageX)
+  const fullyOn  = localX >= 0 && localY >= 0
+                && localX + s.charWidthPx  <= page.widthPx
+                && localY + s.charHeightPx <= page.heightPx;
+  const partialOn = (localX + s.charWidthPx > 0) && (localY + s.charHeightPx > 0)
                  && localX < page.widthPx && localY < page.heightPx;
 
   if (fullyOn || partialOn) {
-    const clip = partialOn && !fullyOn
-      ? { x: 0, y: 0, w: page.widthPx, h: page.heightPx } : null;
-    stampGlyph(
-      char, FONTS[state.fontKey].family, FONT_SIZES[state.fontSizeKey],
-      page.editCanvas.getContext('2d'), localX, localY,
-      s.charWidthPx, s.charHeightPx, clip,
-    );
+    const font    = FONTS[state.fontKey];
+    const ptSize  = FONT_SIZES[state.fontSizeKey];
+    const pxSize  = ptSize * (96 / 72);
+    const editCtx = page.editCanvas.getContext('2d');
+
+    // Clip to page bounds when cursor is only partially on page
+    const clip = (!fullyOn && partialOn)
+      ? { x: 0, y: 0, w: page.widthPx, h: page.heightPx }
+      : null;
+
+    stampGlyph(char, font.family, pxSize, editCtx, localX, localY, s.charWidthPx, s.charHeightPx, clip);
     blitPage(pageIdx);
     state.isDirty = true;
   }
+  // Off-paper: cursor moves but nothing is drawn (fall through)
 
   if (!isDead) state.cursor = advanceCursor(s);
+
   positionCursor();
   drawRulers();
 
+  // Blink suppression while typing
   cursorEl.classList.add('typing');
   clearTimeout(typingTimer);
   typingTimer = setTimeout(() => cursorEl.classList.remove('typing'), 600);
 }
 
-// ── CORRECTION TOOL ───────────────────────────────────────────────────────
-const btnCorr = document.getElementById('btn-correction');
-btnCorr.addEventListener('click', () => {
+// ── CORRECTION TOOL ──────────────────────────────────────────────────────
+document.getElementById('btn-correction').addEventListener('click', () => {
   state.correctionMode = !state.correctionMode;
-  btnCorr.classList.toggle('active', state.correctionMode);
+  document.getElementById('btn-correction').classList.toggle('active', state.correctionMode);
   document.body.classList.toggle('correction-mode', state.correctionMode);
-  if (!state.correctionMode) { corrBrush.style.display = 'none'; focusSink(); }
+  focusSink(); // always keep sink focused so keyboard works in correction mode
 });
 
 let corrShift = false, corrCtrl = false;
 document.addEventListener('keydown', e => {
   if (!state.correctionMode) return;
-  if (e.key === 'Shift')   corrShift = true;
-  if (e.key === 'Control') corrCtrl  = true;
+  if (e.key === 'Shift') corrShift = true;
+  if (e.key === 'Control') corrCtrl = true;
   if (e.key === 'Escape') {
     state.correctionMode = false;
-    btnCorr.classList.remove('active');
+    document.getElementById('btn-correction').classList.remove('active');
     document.body.classList.remove('correction-mode');
-    corrBrush.style.display = 'none';
     focusSink();
   }
 });
 document.addEventListener('keyup', e => {
-  if (e.key === 'Shift')   corrShift = false;
-  if (e.key === 'Control') corrCtrl  = false;
+  if (e.key === 'Shift') corrShift = false;
+  if (e.key === 'Control') corrCtrl = false;
 });
 
 function corrMode() {
-  return corrCtrl ? 'ink' : corrShift ? 'highlight' : 'erase';
+  if (corrCtrl)  return 'ink';
+  if (corrShift) return 'highlight';
+  return 'erase';
 }
+
 function corrBrushColor() {
-  return { erase: 'rgba(254,252,245,0.67)', highlight: 'rgba(255,224,102,0.5)', ink: '#222' }[corrMode()];
+  return { erase: '#fefcf5aa', highlight: 'rgba(255,224,102,0.5)', ink: '#222' }[corrMode()];
 }
 
 viewport.addEventListener('mousemove', e => {
   if (!state.correctionMode) return;
-  const rx = e.clientX - RULER_W;
-  const ry = e.clientY - TOOLBAR_H - RULER_H;
+  const rx = e.clientX - parseInt(getComputedStyle(document.documentElement).getPropertyValue('--ruler-w'));
+  const ry = e.clientY - parseInt(getComputedStyle(document.documentElement).getPropertyValue('--toolbar-h'))
+                       - parseInt(getComputedStyle(document.documentElement).getPropertyValue('--ruler-h'));
   const s  = state.cursor;
-  corrBrush.style.cssText =
-    `left:${rx - s.charWidthPx / 2}px;top:${ry - s.charHeightPx / 2}px;` +
-    `width:${s.charWidthPx}px;height:${s.charHeightPx}px;` +
-    `background:${corrBrushColor()};display:block`;
+  corrBrush.style.left   = (rx - s.charWidthPx / 2) + 'px';
+  corrBrush.style.top    = (ry - s.charHeightPx / 2) + 'px';
+  corrBrush.style.width  = s.charWidthPx + 'px';
+  corrBrush.style.height = s.charHeightPx + 'px';
+  corrBrush.style.background = corrBrushColor();
+  corrBrush.style.display = 'block';
 });
-viewport.addEventListener('mouseleave', () => { corrBrush.style.display = 'none'; });
+
+viewport.addEventListener('mouseleave', () => {
+  corrBrush.style.display = 'none';
+});
 
 let corrPainting = false;
-viewport.addEventListener('mousedown', e => { if (state.correctionMode) { corrPainting = true; applyCorrection(e); } });
-viewport.addEventListener('mousemove', e => { if (state.correctionMode && corrPainting) applyCorrection(e); });
-document.addEventListener('mouseup',   () => { corrPainting = false; });
+viewport.addEventListener('mousedown', e => {
+  if (!state.correctionMode) return;
+  corrPainting = true;
+  applyCorrection(e);
+});
+viewport.addEventListener('mousemove', e => {
+  if (!state.correctionMode || !corrPainting) return;
+  applyCorrection(e);
+});
+document.addEventListener('mouseup', () => { corrPainting = false; });
 
 function applyCorrection(e) {
   computeLayouts();
   const rx = e.clientX - RULER_W;
-  const ry = e.clientY - TOOLBAR_H - RULER_H;
+  const ry = e.clientY - parseInt(getComputedStyle(document.documentElement).getPropertyValue('--toolbar-h')) - RULER_H;
+
+  // Hit-test which page
   for (let i = 0; i < state.layouts.length; i++) {
     const { x, y, w, h } = state.layouts[i];
     if (rx >= x && rx <= x + w && ry >= y && ry <= y + h) {
-      const s = state.cursor;
-      paintCorrection(
-        state.pages[i].editCanvas.getContext('2d'),
-        rx - x - s.charWidthPx / 2, ry - y - s.charHeightPx / 2,
-        s.charWidthPx, s.charHeightPx, corrMode(),
-      );
+      const lx = rx - x;
+      const ly = ry - y;
+      const s  = state.cursor;
+      const editCtx = state.pages[i].editCanvas.getContext('2d');
+      paintCorrection(editCtx, lx - s.charWidthPx/2, ly - s.charHeightPx/2, s.charWidthPx, s.charHeightPx, corrMode());
       blitPage(i);
       state.isDirty = true;
       break;
@@ -669,21 +854,30 @@ function applyCorrection(e) {
   }
 }
 
-// ── RULER CLICKS (margins + tab stops) ───────────────────────────────────
+// ── RULER MARGIN + TAB STOPS ─────────────────────────────────────────────
+// Left 15% of page → left margin stop
+// Right 15% of page → right margin stop
+// Interior → tab stop toggle
 const MARGIN_ZONE = 0.15;
 
 rulerTopCanvas.addEventListener('click', e => {
   if (state.layouts.length === 0) return;
-  const pageLeft  = state.layouts[0].x;
+  const layout0   = state.layouts[0];
+  const pageLeft  = layout0.x;
   const pageWidth = state.pages[0].widthPx;
-  const pageLocal = e.offsetX - pageLeft;
+  const clickX    = e.offsetX;
+  const pageLocal = clickX - pageLeft;
   if (pageLocal < 0 || pageLocal > pageWidth) return;
 
-  if (pageLocal <= pageWidth * MARGIN_ZONE) {
+  const leftZone  = pageWidth * MARGIN_ZONE;
+  const rightZone = pageWidth * (1 - MARGIN_ZONE);
+
+  if (pageLocal <= leftZone) {
     state.cursor = setMarginLeft(state.cursor, pageLocal);
-  } else if (pageLocal >= pageWidth * (1 - MARGIN_ZONE)) {
+  } else if (pageLocal >= rightZone) {
     state.cursor = setMarginRight(state.cursor, pageLocal);
   } else {
+    // Interior: toggle tab stop
     state.tabStops = toggleTabStop(state.tabStops, pageLocal);
   }
   drawRulers();
@@ -691,21 +885,37 @@ rulerTopCanvas.addEventListener('click', e => {
 });
 
 // ── ADD / DELETE PAGE ─────────────────────────────────────────────────────
-function nearestIdx() {
+function doAddPage() {
   computeLayouts();
-  return nearestPageIndex(state.layouts, state.cursor.cursorViewportY);
+  const idx = nearestPageIndex(
+    state.layouts.map(l => ({ y: l.y, h: l.h })),
+    state.cursor.cursorViewportY
+  );
+  state.pages = addPageAfter(state.pages, idx);
+  renderAll();
+  updateStatus();
 }
-function doAddPage()    { state.pages = addPageAfter(state.pages, nearestIdx()); renderAll(); updateStatus(); }
-function doDeletePage() { state.pages = deletePage(state.pages, nearestIdx());   renderAll(); updateStatus(); }
+
+function doDeletePage() {
+  computeLayouts();
+  const idx = nearestPageIndex(
+    state.layouts.map(l => ({ y: l.y, h: l.h })),
+    state.cursor.cursorViewportY
+  );
+  state.pages = deletePage(state.pages, idx);
+  renderAll();
+  updateStatus();
+}
 
 document.getElementById('btn-add-page').addEventListener('click', doAddPage);
 document.getElementById('btn-del-page').addEventListener('click', doDeletePage);
 
-// ── UNSAVED GUARD ─────────────────────────────────────────────────────────
+// ── UNSAVED CHANGES GUARD ─────────────────────────────────────────────────
 function guardUnsaved(action) {
   if (!state.isDirty) { action(); return; }
   state.pendingAction = action;
   document.getElementById('modal-unsaved').classList.remove('hidden');
+  focusSink();
 }
 
 document.getElementById('unsaved-cancel').addEventListener('click', () => {
@@ -715,31 +925,35 @@ document.getElementById('unsaved-cancel').addEventListener('click', () => {
 });
 document.getElementById('unsaved-discard').addEventListener('click', () => {
   document.getElementById('modal-unsaved').classList.add('hidden');
-  const fn = state.pendingAction; state.pendingAction = null; fn?.();
+  const fn = state.pendingAction; state.pendingAction = null;
+  fn?.();
 });
 document.getElementById('unsaved-export').addEventListener('click', () => {
   document.getElementById('modal-unsaved').classList.add('hidden');
+  // Export then run pending
   doExportJpg().then(() => { state.pendingAction?.(); state.pendingAction = null; });
 });
 
 // ── NEW FILE ──────────────────────────────────────────────────────────────
-document.getElementById('btn-new').addEventListener('click', () =>
-  guardUnsaved(() => document.getElementById('modal-new').classList.remove('hidden')));
+document.getElementById('btn-new').addEventListener('click', () => {
+  guardUnsaved(() => document.getElementById('modal-new').classList.remove('hidden'));
+});
 document.getElementById('new-cancel').addEventListener('click', () => {
   document.getElementById('modal-new').classList.add('hidden'); focusSink();
 });
 document.getElementById('new-ok').addEventListener('click', () => {
-  const filename = document.getElementById('new-filename').value || 'document';
-  const sizeName = document.getElementById('new-size').value;
-  const fontKey  = document.getElementById('new-font').value;
-  const fsKey    = document.getElementById('new-fontsize').value;
+  const filename  = document.getElementById('new-filename').value || 'document';
+  const sizeName  = document.getElementById('new-size').value;
+  const fontKey   = document.getElementById('new-font').value;
+  const fsKey     = document.getElementById('new-fontsize').value;
   document.getElementById('modal-new').classList.add('hidden');
   initDocument(sizeName, fontKey, fsKey, filename);
 });
 
 // ── EXPORT ────────────────────────────────────────────────────────────────
-document.getElementById('btn-export').addEventListener('click', () =>
-  document.getElementById('modal-export').classList.remove('hidden'));
+document.getElementById('btn-export').addEventListener('click', () => {
+  document.getElementById('modal-export').classList.remove('hidden');
+});
 document.getElementById('export-cancel').addEventListener('click', () => {
   document.getElementById('modal-export').classList.add('hidden'); focusSink();
 });
@@ -752,149 +966,186 @@ document.getElementById('export-ok').addEventListener('click', async () => {
   focusSink();
 });
 
-function downloadBlob(blob, filename) {
-  const url = URL.createObjectURL(blob);
-  Object.assign(document.createElement('a'), { href: url, download: filename }).click();
-  URL.revokeObjectURL(url);
-}
-
-function pageFilename(base, i, total, ext) {
-  return total > 1 ? `${base}-${i + 1}.${ext}` : `${base}.${ext}`;
-}
-
 async function doExportJpg() {
+  const multi = state.pages.length > 1;
   for (let i = 0; i < state.pages.length; i++) {
-    const { bgCanvas, editCanvas, widthPx, heightPx } = state.pages[i];
-    const flat = flattenLayers(bgCanvas, editCanvas, widthPx, heightPx);
-    downloadBlob(await flat.convertToBlob({ type: 'image/jpeg', quality: 0.92 }),
-                 pageFilename(state.filename, i, state.pages.length, 'jpg'));
+    const page = state.pages[i];
+    const flat = flattenLayers(page.bgCanvas, page.editCanvas, page.widthPx, page.heightPx);
+    const blob = await flat.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = multi ? `${state.filename}-${i+1}.jpg` : `${state.filename}.jpg`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
   state.isDirty = false;
 }
 
 async function doExportGif() {
-  // True GIF encoding requires gif.js (npm); export as PNG with .gif extension.
+  // gif.js not available without npm; export as PNG per page with .gif filename.
+  // True animated GIF only meaningful for multi-page; flagged as future enhancement.
+  const multi = state.pages.length > 1;
   for (let i = 0; i < state.pages.length; i++) {
-    const { bgCanvas, editCanvas, widthPx, heightPx } = state.pages[i];
-    const flat = flattenLayers(bgCanvas, editCanvas, widthPx, heightPx);
-    downloadBlob(await flat.convertToBlob({ type: 'image/png' }),
-                 pageFilename(state.filename, i, state.pages.length, 'gif'));
+    const page = state.pages[i];
+    const flat = flattenLayers(page.bgCanvas, page.editCanvas, page.widthPx, page.heightPx);
+    const blob = await flat.convertToBlob({ type: 'image/png' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = multi ? `${state.filename}-${i+1}.gif` : `${state.filename}.gif`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
   state.isDirty = false;
 }
 
-// Flatten page to original resolution (undoes edit-canvas scaling / rotation)
+// Flatten page to an OffscreenCanvas at export resolution (original size if scaled/rotated).
+// Returns {canvas, wMm, hMm} where wMm/hMm are the PDF page dimensions in mm.
 function flattenForExport(page) {
-  const scaled  = page.scale !== 1 && page.originalWidthMm != null;
-  const origWpx = scaled ? Math.round(page.originalWidthMm  * MM_TO_PX) : page.widthPx;
+  const scaled = page.scale && page.scale !== 1 && page.originalWidthMm;
+  // Portrait original dims in px
+  const origWpx = scaled ? Math.round(page.originalWidthMm * MM_TO_PX) : page.widthPx;
   const origHpx = scaled ? Math.round(page.originalHeightMm * MM_TO_PX) : page.heightPx;
 
+  // Upscale/downscale flattened edit into original resolution
   const out = new OffscreenCanvas(origWpx, origHpx);
   const ctx = out.getContext('2d');
-  ctx.drawImage(page.bgCanvas,   0, 0, origWpx, origHpx);
+  // Draw bg scaled to original resolution
+  ctx.drawImage(page.bgCanvas, 0, 0, origWpx, origHpx);
+  // Draw edit layer scaled proportionally
   ctx.drawImage(page.editCanvas, 0, 0, origWpx, origHpx);
 
   if (page.rotated) {
-    // Rotate 90° CW back to landscape
-    const rot  = new OffscreenCanvas(origHpx, origWpx);
+    // Rotate 90° CW back to landscape for export
+    const rot = new OffscreenCanvas(origHpx, origWpx);
     const rCtx = rot.getContext('2d');
     rCtx.translate(origHpx / 2, origWpx / 2);
     rCtx.rotate(Math.PI / 2);
     rCtx.drawImage(out, -origWpx / 2, -origHpx / 2);
+    // wMm/hMm reflect rotated (landscape) dims
     return { canvas: rot, wMm: origHpx / MM_TO_PX, hMm: origWpx / MM_TO_PX };
   }
+
   return { canvas: out, wMm: origWpx / MM_TO_PX, hMm: origHpx / MM_TO_PX };
+}
+
+async function doExportPdf() {
+  const { jsPDF } = window.jspdf;
+
+  const { canvas: c0, wMm: w0mm, hMm: h0mm } = flattenForExport(state.pages[0]);
+  const doc = new jsPDF({
+    orientation: w0mm > h0mm ? 'landscape' : 'portrait',
+    unit: 'mm',
+    format: [w0mm, h0mm],
+  });
+
+  const addPageImage = async (canvas, wMm, hMm, isFirst) => {
+    if (!isFirst) doc.addPage([wMm, hMm], wMm > hMm ? 'landscape' : 'portrait');
+    const blob    = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.95 });
+    const dataUrl = await blobToDataUrl(blob);
+    doc.addImage(dataUrl, 'JPEG', 0, 0, wMm, hMm);
+  };
+
+  await addPageImage(c0, w0mm, h0mm, true);
+  for (let i = 1; i < state.pages.length; i++) {
+    const { canvas, wMm, hMm } = flattenForExport(state.pages[i]);
+    await addPageImage(canvas, wMm, hMm, false);
+  }
+
+  doc.save(`${state.filename}.pdf`);
+  state.isDirty = false;
 }
 
 function blobToDataUrl(blob) {
   return new Promise((res, rej) => {
     const r = new FileReader();
-    r.onload = () => res(r.result); r.onerror = rej;
+    r.onload  = () => res(r.result);
+    r.onerror = rej;
     r.readAsDataURL(blob);
   });
 }
 
-async function doExportPdf() {
-  const { jsPDF } = window.jspdf;
-  const pages = state.pages.map(flattenForExport);
-  const { wMm: w0, hMm: h0, canvas: c0 } = pages[0];
-  const doc = new jsPDF({ orientation: w0 > h0 ? 'landscape' : 'portrait', unit: 'mm', format: [w0, h0] });
-
-  for (let i = 0; i < pages.length; i++) {
-    const { canvas, wMm, hMm } = pages[i];
-    if (i > 0) doc.addPage([wMm, hMm], wMm > hMm ? 'landscape' : 'portrait');
-    const dataUrl = await blobToDataUrl(await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.95 }));
-    doc.addImage(dataUrl, 'JPEG', 0, 0, wMm, hMm);
-  }
-  doc.save(`${state.filename}.pdf`);
-  state.isDirty = false;
-}
-
 // ── PRINT ─────────────────────────────────────────────────────────────────
 document.getElementById('btn-print').addEventListener('click', async () => {
-  const urls = await Promise.all(state.pages.map(async p => {
-    const flat = flattenLayers(p.bgCanvas, p.editCanvas, p.widthPx, p.heightPx);
-    return URL.createObjectURL(await flat.convertToBlob({ type: 'image/png' }));
-  }));
-  const win = window.open('', '_blank', 'width=800,height=600');
-  win.document.write(`<html><head><style>
-    body{margin:0;background:#fff}
-    img{display:block;page-break-after:always;max-width:100%}
-  </style></head><body>${urls.map(u => `<img src="${u}">`).join('')}</body></html>`);
-  win.document.close();
-  win.onload = () => { win.print(); urls.forEach(URL.revokeObjectURL); };
+  // Render all pages to a hidden print iframe
+  const printWin = window.open('', '_blank', 'width=800,height=600');
+  let html = `<html><head><style>
+    body{margin:0;padding:0;background:#fff;}
+    img{display:block;page-break-after:always;max-width:100%;}
+  </style></head><body>`;
+
+  for (const page of state.pages) {
+    const flat = flattenLayers(page.bgCanvas, page.editCanvas, page.widthPx, page.heightPx);
+    const blob = await flat.convertToBlob({ type: 'image/png' });
+    const url  = URL.createObjectURL(blob);
+    html += `<img src="${url}">`;
+  }
+  html += '</body></html>';
+  printWin.document.write(html);
+  printWin.document.close();
+  printWin.onload = () => { printWin.print(); };
   focusSink();
 });
 
 // ── IMPORT ────────────────────────────────────────────────────────────────
-document.getElementById('btn-import').addEventListener('click', () =>
+document.getElementById('btn-import').addEventListener('click', () => {
   guardUnsaved(() => {
     const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/*,.pdf';
+    input.type = 'file';
+    input.accept = 'image/*,.pdf';
     input.onchange = async e => {
       const file = e.target.files[0];
       if (!file) return;
-      if (file.type === 'application/pdf') await importPdf(file);
-      else await importImage(file);
+      if (file.type === 'application/pdf') {
+        await importPdf(file);
+      } else {
+        await importImage(file);
+      }
     };
     input.click();
-  }));
+  });
+});
 
 async function importImage(file) {
-  const blob   = new Blob([await file.arrayBuffer()], { type: file.type });
-  const bitmap = await createImageBitmap(blob);
-  const wMm    = bitmap.width  / MM_TO_PX;
-  const hMm    = bitmap.height / MM_TO_PX;
-  const res    = resolveImportedSize(wMm, hMm);
+  const bitmap = await createImageBitmap(await file.arrayBuffer().then(b => new Blob([b], {type: file.type})));
+  const wMm = bitmap.width / MM_TO_PX;
+  const hMm = bitmap.height / MM_TO_PX;
+  const res  = resolveImportedSize(wMm, hMm);
+
   if (res.needsWarning) showWarning(res, wMm, hMm);
 
+  const { w, h } = getSizePx(res.sizeName);
+  measureCurrentFont();
+  // Rotate bitmap if needed
   let finalBitmap = bitmap;
   if (res.rotated) {
     const tmp = new OffscreenCanvas(bitmap.height, bitmap.width);
     const ctx = tmp.getContext('2d');
     ctx.translate(bitmap.height / 2, bitmap.width / 2);
     ctx.rotate(Math.PI / 2);
-    ctx.drawImage(bitmap, -bitmap.width / 2, -bitmap.height / 2);
+    ctx.drawImage(bitmap, -bitmap.width/2, -bitmap.height/2);
     finalBitmap = await createImageBitmap(tmp);
   }
 
-  const { w, h } = getSizePx(res.sizeName);
-  const page = Object.assign(createPage(w, h, finalBitmap), {
-    originalWidthMm:  res.rotated ? hMm : wMm,
-    originalHeightMm: res.rotated ? wMm : hMm,
-    rotated: res.rotated, scale: res.scale,
-  });
-
+  const page = createPage(w, h, finalBitmap);
+  page.originalWidthMm  = res.rotated ? hMm : wMm;
+  page.originalHeightMm = res.rotated ? wMm : hMm;
+  page.rotated = res.rotated;
+  page.scale   = res.scale;
   state.sizeName = res.sizeName;
-  state.pages    = [page];
-  state.isDirty  = false;
+
+  state.pages = [page];
+  state.isDirty = false;
   state.tabStops = createTabStops();
   measureCurrentFont();
+
   state.cursor = createCursorState({
     viewportWidth: vw(), viewportHeight: vh(),
     pageWidthPx: w, pageHeightPx: h,
     charWidthPx: state.charW, charHeightPx: state.charH,
   });
+
   renderAll(); updateStatus();
 }
 
@@ -903,79 +1154,96 @@ async function importPdf(file) {
   pdfjsLib.GlobalWorkerOptions.workerSrc =
     'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.2.67/pdf.worker.min.mjs';
 
-  const pdfDoc = await pdfjsLib.getDocument({ data: await file.arrayBuffer() }).promise;
-  const pages  = [];
+  const arrayBuf = await file.arrayBuffer();
+  const pdfDoc   = await pdfjsLib.getDocument({ data: arrayBuf }).promise;
+  const pages    = [];
 
   for (let p = 1; p <= pdfDoc.numPages; p++) {
-    const pdfPage = await pdfDoc.getPage(p);
-    const vp      = pdfPage.getViewport({ scale: 96 / 72 });
-    const wMm     = vp.width  / MM_TO_PX;
-    const hMm     = vp.height / MM_TO_PX;
-    const res     = resolveImportedSize(wMm, hMm);
+    const pdfPage  = await pdfDoc.getPage(p);
+    const viewport = pdfPage.getViewport({ scale: 96 / 72 }); // 96dpi render
+    const wMm = viewport.width  / MM_TO_PX;
+    const hMm = viewport.height / MM_TO_PX;
+    const res = resolveImportedSize(wMm, hMm);
+
     if (p === 1 && res.needsWarning) showWarning(res, wMm, hMm);
 
     const { w, h } = getSizePx(res.sizeName);
-    const off  = new OffscreenCanvas(w, h);
-    const ctx  = off.getContext('2d');
-    ctx.fillStyle = '#fefcf5'; ctx.fillRect(0, 0, w, h);
-    await pdfPage.render({ canvasContext: ctx,
-      viewport: pdfPage.getViewport({ scale: (96 / 72) * res.scale }) }).promise;
+    const offscreen = new OffscreenCanvas(w, h);
+    const ctx = offscreen.getContext('2d');
+    ctx.fillStyle = '#fefcf5';
+    ctx.fillRect(0, 0, w, h);
 
-    pages.push(Object.assign(createPage(w, h, await createImageBitmap(off)), {
-      originalWidthMm: wMm, originalHeightMm: hMm,
-      rotated: res.rotated, scale: res.scale,
-    }));
+    // Render PDF page into offscreen canvas
+    const renderViewport = pdfPage.getViewport({ scale: (96 / 72) * res.scale });
+    await pdfPage.render({ canvasContext: ctx, viewport: renderViewport }).promise;
+
+    const bitmap = await createImageBitmap(offscreen);
+    const pg = createPage(w, h, bitmap);
+    pg.originalWidthMm  = wMm;
+    pg.originalHeightMm = hMm;
+    pg.rotated = res.rotated;
+    pg.scale   = res.scale;
+    pages.push(pg);
   }
 
   state.pages    = pages;
-  state.sizeName = resolveImportedSize(pages[0].originalWidthMm, pages[0].originalHeightMm).sizeName;
+  state.sizeName = resolveImportedSize(
+    pages[0].originalWidthMm, pages[0].originalHeightMm
+  ).sizeName;
   state.isDirty  = false;
   state.tabStops = createTabStops();
   measureCurrentFont();
+
   state.cursor = createCursorState({
     viewportWidth: vw(), viewportHeight: vh(),
     pageWidthPx: pages[0].widthPx, pageHeightPx: pages[0].heightPx,
     charWidthPx: state.charW, charHeightPx: state.charH,
   });
+
   renderAll(); updateStatus();
 }
 
 function showWarning(res, wMm, hMm) {
+  const txt = document.getElementById('warning-text');
   const action = res.scale < 1 ? 'scaled down' : 'scaled up';
-  document.getElementById('warning-text').textContent =
+  txt.textContent =
     `The imported page (${Math.round(wMm)}×${Math.round(hMm)} mm) is outside the supported range. ` +
-    `It has been ${action} to fit ${res.sizeName} for editing` +
-    `${res.rotated ? ' and rotated to portrait' : ''}.`;
+    `It has been ${action} to fit ${res.sizeName} for editing${res.rotated ? ' and rotated to portrait' : ''}.`;
   document.getElementById('modal-warning').classList.remove('hidden');
 }
 document.getElementById('warning-ok').addEventListener('click', () => {
-  document.getElementById('modal-warning').classList.add('hidden'); focusSink();
+  document.getElementById('modal-warning').classList.add('hidden');
+  focusSink();
 });
 
-// ── RESIZE ────────────────────────────────────────────────────────────────
+// ── WINDOW RESIZE ─────────────────────────────────────────────────────────
 window.addEventListener('resize', () => {
   if (!state.cursor) return;
-  const { paperY, cursorX, pageX, marginLeft, marginRight, charWidthPx } = state.cursor;
-  const paperOffset  = paperY - vh() * (2 / 3);
-  const localCursorX = cursorX - pageX;
+  // Recompute cursor with new viewport, preserve paper scroll offset
+  const paperOffset = state.cursor.paperY - (vh() * 2/3); // relative to initial
   const page0 = state.pages[0];
-  const next  = createCursorState({
+  state.cursor = createCursorState({
     viewportWidth: vw(), viewportHeight: vh(),
     pageWidthPx: page0.widthPx, pageHeightPx: page0.heightPx,
     charWidthPx: state.charW, charHeightPx: state.charH,
   });
-  // Clamp preserved cursorX inside (possibly changed) viewport
-  const restoredCursorX = next.pageX + Math.max(marginLeft, Math.min(localCursorX, marginRight - charWidthPx));
-  state.cursor = { ...next, paperY: next.paperY + paperOffset, cursorX: restoredCursorX, marginLeft, marginRight };
+  // Restore scroll
+  state.cursor = { ...state.cursor, paperY: state.cursor.paperY + paperOffset };
   renderAll();
 });
 
 // ── BOOT ──────────────────────────────────────────────────────────────────
+// Wire ruler canvas sizes
+rulerTopCanvas.style.cssText = `position:fixed;top:var(--toolbar-h);left:${RULER_W}px;right:0;height:${RULER_H}px;z-index:90;cursor:crosshair`;
+rulerLeftCanvas.style.cssText = `position:fixed;top:calc(var(--toolbar-h) + ${RULER_H}px);left:0;width:${RULER_W}px;bottom:0;z-index:90`;
+
 initDocument('A4', 'prestige', 'large', 'document');
 
 viewport.addEventListener('click', focusSink);
 document.addEventListener('click', e => {
-  if (!state.correctionMode && !e.target.closest('.modal') && !e.target.closest('#toolbar')) focusSink();
+  if (!e.target.closest('.modal') && !e.target.closest('#toolbar')) {
+    focusSink(); // keep sink focused regardless of correction mode
+  }
 });
 </script>
 </body>
