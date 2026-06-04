@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+
+<html>
+
+
+<head>
+	<meta charset = "utf-8">
+	<meta name = "viewport" content = "width=device-width, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
+	<title>Barbarian</title>
+	<link rel = "stylesheet" type = "text/css" href = "../../include/prd-stylesheet.css" />
+	<link rel = "stylesheet" type = "text/css" href = "http://cdn.paizo.com/chrome/style/jquery.dataTables.min.css" />
+	<link rel = "stylesheet" type = "text/css" href = "http://cdn.paizo.com/chrome/style/jquery-ui.min.css" />
+</head>
+
+<body>
+
+<div style="width: 100%; background: #c8433f; padding: 0.5rem;">
+<article style="color: #fffdf8;">
+<p style="font-size: 0.85rem; text-align: center;">You are viewing the legacy Pathfinder Reference Document website.<br />Paizo Inc. has now partnered with Archives of Nethys to provide the online version of the Pathfinder RPG rules at <a href = "http://pfrd.info" style = "color: #fffdf8;"><b>pfrd.info</b></a>.<br />
+<a href = "http://paizo.com/community/blog/v5748dyo6sg93?Big-PathfinderStarfinder-Reference-Document-News" style = "color: #fffdf8;">Learn more</a>.</p>
+</article>
+</div>
+
+<div class = "header">
+	<!-- Logos -->
+	<div class = "header-content">
+		<div id = "header-full">
+			<a href = "http://legacy.aonprd.com"><img src = "../../include/PRD-Logo.png" alt = "Pathfinder Reference Document" style = "margin: 15px 0 0 0;" /></a>
+		</div>
+		<div id = "header-mobile">
+			<a href = "http://legacy.aonprd.com"><img src = "../../include/PRD-Logo_Mobile.png" alt = "Pathfinder Reference Document" style = "margin: 5px 0 0 10px;" /></a>
+		</div>
+	</div>
+
+</div>
+
+<div class = "body-content">
+
+	<div id = "nav-path"></div>
+
+	<div class = "body">
+
+        
+				<h1 id="barbarian">Barbarian</h1>
+				<p>For some, there is only rage. In the ways of their people, in the fury of their passion, in the howl of battle, conflict is all these brutal souls know. Savages, hired muscle, masters of vicious martial techniques, they are not soldiers or professional warriors&mdash;they are the battle possessed, creatures of slaughter and spirits of war. Known as barbarians, these warmongers know little of training, preparation, or the rules of warfare; for them, only the moment exists, with the foes that stand before them and the knowledge that the next moment might hold their death. They possess a sixth sense in regard to danger and the endurance to weather all that might entail. These brutal warriors might rise from all walks of life, both civilized and savage, though whole societies embracing such philosophies roam the wild places of the world. Within barbarians storms the primal spirit of battle, and woe to those who face their rage.</p>
+				<p><b>Role</b>: Barbarians excel in combat, possessing the martial prowess and fortitude to take on foes seemingly far superior to themselves. With rage granting them boldness and daring beyond that of most other warriors, barbarians charge furiously into battle and ruin all who would stand in their way.</p>
+				<p><b>Alignment</b>: Any nonlawful.</p>
+				<p><b>Hit Die</b>: d12.</p>
+				<h2>Class Skills</h2>
+				<p>The barbarian's class skills are <a href="../skills/acrobatics.html#acrobatics" >Acrobatics</a> (<a href = "../gettingStarted.html#dexterity" >Dex</a>), <a href="../skills/climb.html#climb" >Climb</a> (<a href = "../gettingStarted.html#strength" >Str</a>), <a href="../skills/craft.html#craft" >Craft</a> (<a href = "../gettingStarted.html#intelligence" >Int</a>), <a href="../skills/handleAnimal.html#handle-animal" >Handle Animal</a> (<a href = "../gettingStarted.html#charisma-new" >Cha</a>), <a href="../skills/intimidate.html#intimidate" >Intimidate</a> (<a href = "../gettingStarted.html#charisma-new" >Cha</a>), <a href="../skills/knowledge.html#knowledge" >Knowledge</a> (nature) (<a href = "../gettingStarted.html#intelligence" >Int</a>), <a href="../skills/perception.html#perception" >Perception</a> (<a href = "../gettingStarted.html#wisdom" >Wis</a>), <a href="../skills/ride.html#ride" >Ride</a> (<a href = "../gettingStarted.html#dexterity" >Dex</a>), <a href="../skills/survival.html#survival" >Survival</a> (<a href = "../gettingStarted.html#wisdom" >Wis</a>), and <a href="../skills/swim.html#swim" >Swim</a> (<a href = "../gettingStarted.html#strength" >Str</a>).</p>
+				<p><b>Skill Ranks per Level</b>: 4 + <a href = "../gettingStarted.html#intelligence" >Int</a> modifier.</p>
+<div class = "table">
+				<table id="table-3-2-barbarian"><caption>Table: Barbarian</caption>
+<thead><tr><th>Level</th><th>Base Attack Bonus</th><th>Fort Save</th><th>Ref Save</th><th>Will Save</th><th>Special</th></tr></thead>
+<tr><td>1st</td><td>+1</td><td>+2</td><td>+0</td><td>+0</td><td><a href="#fast-movement" >Fast movement</a>, <a href="#rage" >rage</a></td></tr>
+<tr><td>2nd</td><td>+2</td><td>+3</td><td>+0</td><td>+0</td><td><a href="#rage-powers" >Rage power</a>, <a href="#uncanny-dodge-barbarian" >uncanny dodge</a></td></tr>
+<tr><td>3rd</td><td>+3</td><td>+3</td><td>+1</td><td>+1</td><td><a href="#trap-sense-barbarian" >Trap sense</a> +1</td></tr>
+<tr><td>4th</td><td>+4</td><td>+4</td><td>+1</td><td>+1</td><td><a href="#rage-powers" >Rage power</a></td></tr>
+<tr><td>5th</td><td>+5</td><td>+4</td><td>+1</td><td>+1</td><td><a href="#improved-uncanny-dodge-barbarian" >Improved uncanny dodge</a></td></tr>
+<tr><td>6th</td><td>+6/+1</td><td>+5</td><td>+2</td><td>+2</td><td><a href="#rage-powers" >Rage power</a>, <a href="#trap-sense-barbarian" >Trap sense</a> +2</td></tr>
+</table></div>
+
+				<h2>Class Features</h2>
+				<p>All of the following are class features of the barbarian.</p>
+				<p><b>Weapon and Armor Proficiency</b>: A barbarian is proficient with all <a href = "../equipment.html#simple-martial-and-exotic-weapons" >simple</a> and <a href = "../equipment.html#simple-martial-and-exotic-weapons" >martial</a> weapons, light armor, medium armor, and shields (except tower shields).</p>
+				<p id="fast-movement"><b>Fast Movement <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></b>: A barbarian's land speed is faster than the norm for her race by +10 feet. This benefit applies only when she is wearing no armor, light armor, or medium armor, and not carrying a heavy load. Apply this bonus before modifying the barbarian's speed because of any load carried or armor worn. This bonus stacks with any other bonuses to the barbarian's land speed.</p>
+				<p id="rage"><b>Rage <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></b>: A barbarian can call upon inner reserves of strength and ferocity, granting her additional combat prowess. Starting at 1st level, a barbarian can rage for a number of rounds per day equal to 4 + her <a href = "../gettingStarted.html#constitution" >Constitution</a> modifier. At each level after 1st, she can rage for 2 additional rounds. Temporary increases to <a href = "../gettingStarted.html#constitution" >Constitution</a>, such as those gained from rage and spells like <i><a href="../spells/bearSEndurance.html#bear-s-endurance" >bear's endurance</a>,</i> do not increase the total number of rounds that a barbarian can rage per day. A barbarian can enter rage as a free action. The total number of rounds of rage per day is renewed after resting for 8 hours, although these hours do not need to be consecutive.</p>
+				<p>While in rage, a barbarian gains a +4 morale bonus to her <a href = "../gettingStarted.html#strength" >Strength</a> and <a href = "../gettingStarted.html#constitution" >Constitution</a>, as well as a +2 morale bonus on <a href="../combat.html#will" >Will saves</a>. In addition, she takes a &ndash;2 penalty to <a href="../combat.html#armor-class" >Armor Class</a>. The increase to <a href = "../gettingStarted.html#constitution" >Constitution</a> grants the barbarian 2 hit points per Hit Dice, but these disappear when the rage ends and are not lost first like <a href="../combat.html#temporary-hit-points" >temporary hit points</a>. While in rage, a barbarian cannot use any <a href = "../gettingStarted.html#charisma-new" >Charisma</a>-, <a href = "../gettingStarted.html#dexterity" >Dexterity</a>-, or <a href = "../gettingStarted.html#intelligence" >Intelligence</a>-based skills (except <a href="../skills/acrobatics.html#acrobatics" >Acrobatics</a>, <a href="../skills/fly.html#fly" >Fly</a>, <a href="../skills/intimidate.html#intimidate" >Intimidate</a>, and <a href="../skills/ride.html#ride" >Ride</a>) or any ability that requires patience or concentration.</p>
+				<p>A barbarian can end her rage as a free action and is <a href = "../glossary.html#fatigued" >fatigued</a> after rage for a number of rounds equal to 2 times the number of rounds spent in the rage. A barbarian cannot enter a new rage while <a href = "../glossary.html#fatigued" >fatigued</a> or <a href = "../glossary.html#exhausted" >exhausted</a> but can otherwise enter rage multiple times during a single encounter or combat. If a barbarian falls <a href = "../glossary.html#unconscious" >unconscious</a>, her rage immediately ends, placing her in peril of death.</p>
+				<p id="rage-powers"><b>Rage Powers <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></b>: As a barbarian gains levels, she learns to use her rage in new ways. Starting at 2nd level, a barbarian gains a rage power. She gains another rage power for every two levels of barbarian attained after 2nd level. A barbarian gains the benefits of rage powers only while raging, and some of these powers require the barbarian to take an action first. Unless otherwise noted, a barbarian cannot select an individual power more than once.</p>
+				<p id="rage-powers-animal-fury"><i>Animal Fury <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: While raging, the barbarian gains a bite attack. If used as part of a full attack action, the bite attack is made at the barbarian's full base attack bonus &ndash;5. If the bite hits, it deals 1d4 points of damage (assuming the barbarian is Medium; 1d3 points of damage if Small) plus half the barbarian's <a href = "../gettingStarted.html#strength" >Strength</a> modifier. A barbarian can make a bite attack as part of the action to maintain or break free from a grapple. This attack is resolved before the grapple check is made. If the bite attack hits, any grapple checks made by the barbarian against the target this round are at a +2 bonus.</p>
+				<p id="rage-powers-guarded-stance-copy-346"><i>Guarded Stance</i> <i><a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: The barbarian gains a +1 <a href="../combat.html#dodge-bonuses" >dodge bonus</a> to her <a href="../combat.html#armor-class" >Armor Class</a> against melee attacks for a number of rounds equal to the barbarian's current <a href = "../gettingStarted.html#constitution" >Constitution</a> modifier (minimum 1). This bonus increases to +2 at 6th level. Activating this ability is a move action that does not provoke an <a href="../combat.html#attacks-of-opportunity" >attack of opportunity</a>.</p>
+				<p id="rage-powers-intimidating-glare"><i>Intimidating Glare</i> <i><a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: The barbarian can make an <a href="../skills/intimidate.html#intimidate" >Intimidate</a> check against one adjacent foe as a move action. If the barbarian successfully demoralizes her opponent, the foe is <a href = "../glossary.html#shaken" >shaken</a> for 1d4 rounds + 1 round for every 5 points by which the barbarian's check exceeds the DC.</p>
+				<p id="rage-powers-knockback"><i>Knockback</i> <i><a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: Once per round, the barbarian can make a <a href="../combat.html#bull-rush" >bull rush</a> attempt against one target in place of a melee attack. If successful, the target takes damage equal to the barbarian's <a href = "../gettingStarted.html#strength" >Strength</a> modifier and is moved back as normal. The barbarian does not need to move with the target if successful. This does not provoke an <a href="../combat.html#attacks-of-opportunity" >attack of opportunity</a>.</p>
+				<p id="rage-powers-low-light-vision"><i>Low-Light Vision</i> <i><a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: The barbarian's senses sharpen and she gains <a href = "../glossary.html#low-light-vision" >low-light vision</a> while raging.</p>
+				<p id="rage-powers-moment-of-clarity"><i>Moment of Clarity</i> <i><a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: The barbarian does not gain any benefits or take any of the penalties from rage for 1 round. Activating this power is a swift action. This includes the penalty to <a href="../combat.html#armor-class" >Armor Class</a> and the restriction on what actions can be performed. This round still counts against her total number of rounds of rage per day. This power can only be used once per rage.</p>
+				<p id="rage-powers-night-vision"><i>Night Vision</i> <i><a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: The barbarian's senses grow incredibly sharp while raging and she gains <a href = "../glossary.html#darkvision" >darkvision</a> 60 feet. A barbarian must have <a href = "../glossary.html#low-light-vision" >low-light vision</a> as a rage power or a racial trait to select this rage power.</p>
+				<p id="rage-powers-no-escape"><i>No Escape <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: The barbarian can move up to double her normal speed as an immediate action but she can only use this ability when an adjacent foe uses a <a href="../combat.html#withdraw" >withdraw action</a> to move away from her. She must end her movement adjacent to the enemy that used the <a href="../combat.html#withdraw" >withdraw action</a>. The barbarian provokes attacks of opportunity as normal during this movement. This power can only be used once per rage.</p>
+				<p id="rage-powers-powerful-blow"><i>Powerful Blow <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: The barbarian gains a +1 bonus on a single damage roll. This bonus increases to +2 at 4th level. This power is used as a swift action before the roll to hit is made. This power can only be used once per rage.</p>
+				<p id="rage-powers-quick-reflexes"><i>Quick Reflexes <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: While raging, the barbarian can make one additional <a href="../combat.html#attacks-of-opportunity" >attack of opportunity</a> per round.</p>
+				<p id="rage-powers-raging-climber"><i>Raging Climber <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: When raging, the barbarian adds her level as an enhancement bonus on all <a href="../skills/climb.html#climb" >Climb</a> <a href = "../usingSkills.html#skill-checks" >skill checks</a>.</p>
+				<p id="rage-powers-raging-leaper"><i>Raging Leaper <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: When raging, the barbarian adds her level as an enhancement bonus on all <a href="../skills/acrobatics.html#acrobatics" >Acrobatics</a> <a href = "../usingSkills.html#skill-checks" >skill checks</a> made to jump. When making a jump in this way, the barbarian is always considered to have a running start.</p>
+				<p id="rage-powers-raging-swimmer"><i>Raging Swimmer <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: When raging, the barbarian adds her level as an enhancement bonus on all <a href="../skills/swim.html#swim" >Swim</a> <a href = "../usingSkills.html#skill-checks" >skill checks</a>.</p>
+				<p id="rage-powers-renewed-vigor"><i>Renewed Vigor</i> <i><a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: As a standard action, the barbarian heals 1d8 points of damage + her <a href = "../gettingStarted.html#constitution" >Constitution</a> modifier. A barbarian must be at least 4th level before selecting this power. This power can be used only once per day and only while raging.</p>
+				<p id="rage-powers-rolling-dodge"><i>Rolling Dodge <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: The barbarian gains a +1 <a href="../combat.html#dodge-bonuses" >dodge bonus</a> to her <a href="../combat.html#armor-class" >Armor Class</a> against ranged attacks for a number of rounds equal to the barbarian's current <a href = "../gettingStarted.html#constitution" >Constitution</a> modifier (minimum 1). This bonus increases to +2 at 6th level. Activating this ability is a move action that does not provoke an <a href="../combat.html#attacks-of-opportunity" >attack of opportunity</a>.</p>
+				<p id="rage-powers-roused-anger"><i>Roused Anger</i> <i><a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: The barbarian may enter a rage even if <a href = "../glossary.html#fatigued" >fatigued</a>. While raging after using this ability, the barbarian is immune to the <a href = "../glossary.html#fatigued" >fatigued</a> condition. Once this rage ends, the barbarian is <a href = "../glossary.html#exhausted" >exhausted</a> for 10 minutes per round spent raging.</p>
+				<p id="rage-powers-scent"><i>Scent</i> <i><a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: The barbarian gains the <a href = "../glossary.html#scent" >scent</a> ability while raging and can use this ability to locate unseen foes (see <a href = "../glossary.html#appendix-1-special-abilities">Special Abilities</a> for rules on the <a href = "../glossary.html#scent" >scent</a> ability).</p>
+				<p id="rage-powers-strength-surge"><i>Strength Surge</i> <i><a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: The barbarian adds her barbarian level on one <a href = "../gettingStarted.html#strength" >Strength</a> check or <a href="../combat.html#combat-maneuvers" >combat maneuver check</a>, or to her <a href="../combat.html#combat-maneuver-defense" >Combat Maneuver Defense</a> when an opponent attempts a maneuver against her. This power is used as an immediate action. This power can only be used once per rage.</p>
+				<p id="rage-powers-superstition"><i>Superstition <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: The barbarian gains a +2 morale bonus on <a href="../combat.html#saving-throws" >saving throws</a> made to resist spells, supernatural abilities, and spell-like abilities. This bonus increases to +2 at 4th level. While raging, the barbarian cannot be a willing target of any spell and must make <a href="../combat.html#saving-throws" >saving throws</a> to resist all spells, even those cast by allies.</p>
+				<p id="rage-powers-surprise-accuracy"><i>Surprise Accuracy</i> <i><a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: The barbarian gains a +1 morale bonus on one attack roll. This bonus increases to +2 at 4th level. This power is used as a swift action before the roll to hit is made. This power can only be used once per rage.</p>
+				<p id="rage-powers-swift-foot"><i>Swift Foot</i> <i><a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></i>: The barbarian gains a 5-foot enhancement bonus to her speed. This increase is always active while the barbarian is raging. A barbarian can select this rage power up to three times. Its effects stack. </p>
+				<p id="uncanny-dodge-barbarian"><b>Uncanny Dodge <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></b>: At 2nd level, a barbarian gains the ability to react to danger before her senses would normally allow her to do so. She cannot be caught <a href = "../glossary.html#flat-footed" >flat-footed</a>, nor does she lose her Dexterity bonus to AC if the attacker is <a href = "../glossary.html#invisible" >invisible</a>. She still loses her <a href = "../gettingStarted.html#dexterity" >Dexterity</a> bonus to <a href="../combat.html#armor-class" >AC</a> if immobilized. A barbarian with this ability can still lose her <a href = "../gettingStarted.html#dexterity" >Dexterity</a> bonus to <a href="../combat.html#armor-class" >AC</a> if an opponent successfully uses the feint action against her.</p>
+				<p>If a barbarian already has uncanny dodge from a different class, she automatically gains improved uncanny dodge (see below) instead.</p>
+				<p id="trap-sense-barbarian"><b>Trap Sense <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></b>: At 3rd level, a barbarian gains a +1 bonus on <a href="../combat.html#reflex" >Reflex saves</a> made to avoid traps and a +1 <a href="../combat.html#dodge-bonuses" >dodge bonus</a> to <a href="../combat.html#armor-class" >AC</a> against attacks made by traps. These bonuses increase to +2 at 6th level. Trap sense bonuses gained from multiple classes stack.</p>
+				<p id="improved-uncanny-dodge-barbarian"><b>Improved Uncanny Dodge <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></b>: At 5th level and higher, a barbarian can no longer be flanked. This defense denies a rogue the ability to sneak attack the barbarian by flanking her, unless the attacker has at least four more rogue levels than the target has barbarian levels.</p>
+				<p>If a character already has uncanny dodge (see above) from another class, the levels from the classes that grant uncanny dodge stack to determine the minimum rogue level required to flank the character.</p>
+				<p id="greater-rage"><b>Greater Rage <a href = "../glossary.html#extraordinary-abilities-ex" >(Ex)</a></b>: At 11th level, when a barbarian enters rage, the morale bonus to her <a href = "../gettingStarted.html#strength" >Strength</a> and <a href = "../gettingStarted.html#constitution" >Constitution</a> increases to +6 and the morale bonus on her <a href="../combat.html#will" >Will saves</a> increases to +3.</p>
+				<h2>Ex-Barbarians</h2>
+				<p>A barbarian who becomes lawful loses the ability to rage and cannot gain more levels as a barbarian. She retains all other benefits of the class.</p>
+        	<div class = "footer">
+		<p>
+			<!--<a href = "/threads/rzs2soys">Report a Problem</a><br /><br />
+			&copy;2002-2016 Paizo, Inc.&reg;<br />
+			Paizo Inc., Paizo, Pathfinder, and the Pathfinder logo are registered trademarks of Paizo Inc., and<br />
+			Pathfinder Roleplaying Game and Pathfinder Campaign Setting are trademarks of Paizo Inc.<br />-->
+			<a href="../../openGameLicense.html">Open Game License</a>.
+		</p>
+	</div>
+
+	</div>
+</div>
+
+<script type = "text/javascript" src = "../../include/js/jquery-1.10.2.min.js"></script>
+<script type = "text/javascript" src = "../../include/js/jquery.cookie.js"></script>
+<script type = "text/javascript" src = "http://cdn.paizo.com/chrome/js/jquery.dataTables.min.js"></script>
+<script type = "text/javascript" src = "../../include/js/prd-jquery.js"></script>
+<script type = "text/javascript" src = "../../include/js/prd-scripts.js"></script>
+<script type = "text/javascript">var globalTitle="Barbarian",globalNavPath=[{ href: '/pathfinderRPG/prd/coreRulebook/classes.html', name: 'Classes' }];</script>
+<script type = "text/javascript">
+$(function () {
+	if(!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
+			highlightNavLocation(globalNavPath);
+		}
+	});
+</script>
+</body>
+
+
+</html>
