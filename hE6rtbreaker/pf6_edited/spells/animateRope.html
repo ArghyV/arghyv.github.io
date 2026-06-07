@@ -1,86 +1,29 @@
 <!DOCTYPE html>
-
-<html>
-
-
+<html lang="en">
 <head>
-	<meta charset = "utf-8">
-	<meta name = "viewport" content = "width=device-width, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
-	<title>Animate Rope</title>
-	<link rel = "stylesheet" type = "text/css" href = "../../include/prd-stylesheet.css" />
-	<link rel = "stylesheet" type = "text/css" href = "http://cdn.paizo.com/chrome/style/jquery.dataTables.min.css" />
-	<link rel = "stylesheet" type = "text/css" href = "http://cdn.paizo.com/chrome/style/jquery-ui.min.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Animate Rope</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../pf6.css">
 </head>
-
 <body>
-
-<div style="width: 100%; background: #c8433f; padding: 0.5rem;">
-<article style="color: #fffdf8;">
-<p style="font-size: 0.85rem; text-align: center;">You are viewing the legacy Pathfinder Reference Document website.<br />Paizo Inc. has now partnered with Archives of Nethys to provide the online version of the Pathfinder RPG rules at <a href = "http://pfrd.info" style = "color: #fffdf8;"><b>pfrd.info</b></a>.<br />
-<a href = "http://paizo.com/community/blog/v5748dyo6sg93?Big-PathfinderStarfinder-Reference-Document-News" style = "color: #fffdf8;">Learn more</a>.</p>
-</article>
+<div class="content">
+<p class="stat-block-title" id="animate-rope"><b>Animate Rope</b></p>
+<p class="stat-block-1"><b>School</b> transmutation; <b>Level</b> bard 1, sorcerer/wizard 1</p>
+<p class="stat-block-1"><b>Casting Time</b> 1 standard action</p>
+<p class="stat-block-1"><b>Components</b> V, S</p>
+<p class="stat-block-1"><b>Range </b>medium (100 ft. + 10 ft./level)</p>
+<p class="stat-block-1"><b>Target</b> one rope-like object, length up to 50 ft. + 5 ft./level; see text</p>
+<p class="stat-block-1"><b>Duration</b> 1 round/level</p>
+<p class="stat-block-1"><b>Saving Throw</b> none;<b> <a href="../glossary.html#spell-resistance">Spell Resistance</a></b> no</p>
+<p>You can animate a nonliving rope-like object. The maximum length assumes a rope with a 1-inch diameter. Reduce the maximum length by 50% for every additional inch of thickness, and increase it by 50% for each reduction of the rope's diameter by half.</p>
+<p>The possible commands are "coil" (form a neat, coiled stack), "coil and knot," "loop," "loop and knot," "tie and knot," and the opposites of all of the above ("uncoil," and so forth). You can give one command each round as a move action, as if directing an active spell.</p>
+<p>The rope can enwrap only a creature or an object within 1 foot of it—it does not snake outward—so it must be thrown near the intended target. Doing so requires a successful ranged touch attack roll (range increment 10 feet). A typical 1-inch-diameter hemp rope has 2 hit points, <a href="../combat.html#armor-class">AC</a> 10, and requires a DC 23 <a href="../gettingStarted.html#strength">Strength</a> check to burst it. The rope does not deal damage, but it can be used as a trip line or to cause a single opponent that fails a <a href="../combat.html#reflex">Reflex</a> saving throw to become <a href="../glossary.html#entangled">entangled</a>. A creature capable of spellcasting that is bound by this spell must make a concentration check with a DC of 15 + the spell's level to cast a spell. An <a href="../glossary.html#entangled">entangled</a> creature can slip free with a DC 20 Escape Artist check.</p>
+<p>The rope itself and any knots tied in it are not magical.</p>
+<p>The spell cannot affect objects carried or worn by a creature.</p>
 </div>
-
-<div class = "header">
-	<!-- Logos -->
-	<div class = "header-content">
-		<div id = "header-full">
-			<a href = "http://legacy.aonprd.com"><img src = "../../include/PRD-Logo.png" alt = "Pathfinder Reference Document" style = "margin: 15px 0 0 0;" /></a>
-		</div>
-		<div id = "header-mobile">
-			<a href = "http://legacy.aonprd.com"><img src = "../../include/PRD-Logo_Mobile.png" alt = "Pathfinder Reference Document" style = "margin: 5px 0 0 10px;" /></a>
-		</div>
-	</div>
-
-</div>
-
-<div class = "body-content">
-
-	<div id = "nav-path"></div>
-
-	<div class = "body">
-
-        
-				<p id="animate-rope" class="stat-block-title"><b>Animate Rope</b></p>
-				<p class="stat-block-1"><b>School</b> transmutation; <b>Level</b> bard 1, sorcerer/wizard 1</p>
-				<p class="stat-block-1"><b>Casting Time</b> 1 standard action</p>
-				<p class="stat-block-1"><b>Components</b> V, S</p>
-				<p class="stat-block-1"><b>Range </b>medium (100 ft. + 10 ft./level)</p>
-				<p class="stat-block-1"><b>Target</b> one rope-like object, length up to 50 ft. + 5 ft./level; see text</p>
-				<p class="stat-block-1"><b>Duration</b> 1 round/level</p>
-				<p class="stat-block-1"><b>Saving Throw</b> none;<b> <a href = "../glossary.html#spell-resistance" >Spell Resistance</a></b> no</p>
-				<p>You can animate a nonliving rope-like object. The maximum length assumes a rope with a 1-inch diameter. Reduce the maximum length by 50% for every additional inch of thickness, and increase it by 50% for each reduction of the rope's diameter by half.</p>
-				<p>The possible commands are "coil" (form a neat, coiled stack), "coil and knot," "loop," "loop and knot," "tie and knot," and the opposites of all of the above ("uncoil," and so forth). You can give one command each round as a move action, as if directing an active spell.</p>
-				<p>The rope can enwrap only a creature or an object within 1 foot of it&mdash;it does not snake outward&mdash;so it must be thrown near the intended target. Doing so requires a successful ranged touch attack roll (range increment 10 feet). A typical 1-inch-diameter hemp rope has 2 hit points, <a href="../combat.html#armor-class" >AC</a> 10, and requires a DC 23 <a href = "../gettingStarted.html#strength" >Strength</a> check to burst it. The rope does not deal damage, but it can be used as a trip line or to cause a single opponent that fails a <a href="../combat.html#reflex" >Reflex</a> saving throw to become <a href = "../glossary.html#entangled" >entangled</a>. A creature capable of spellcasting that is bound by this spell must make a concentration check with a DC of 15 + the spell's level to cast a spell. An <a href = "../glossary.html#entangled" >entangled</a> creature can slip free with a DC 20 Escape Artist check.</p>
-				<p>The rope itself and any knots tied in it are not magical.</p>
-				<p>The spell cannot affect objects carried or worn by a creature.</p>
-        	<div class = "footer">
-		<p>
-			<!--<a href = "/threads/rzs2soys">Report a Problem</a><br /><br />
-			&copy;2002-2016 Paizo, Inc.&reg;<br />
-			Paizo Inc., Paizo, Pathfinder, and the Pathfinder logo are registered trademarks of Paizo Inc., and<br />
-			Pathfinder Roleplaying Game and Pathfinder Campaign Setting are trademarks of Paizo Inc.<br />-->
-			<a href="../../openGameLicense.html">Open Game License</a>.
-		</p>
-	</div>
-
-	</div>
-</div>
-
-<script type = "text/javascript" src = "../../include/js/jquery-1.10.2.min.js"></script>
-<script type = "text/javascript" src = "../../include/js/jquery.cookie.js"></script>
-<script type = "text/javascript" src = "http://cdn.paizo.com/chrome/js/jquery.dataTables.min.js"></script>
-<script type = "text/javascript" src = "../../include/js/prd-jquery.js"></script>
-<script type = "text/javascript" src = "../../include/js/prd-scripts.js"></script>
-<script type = "text/javascript">var globalTitle="Animate Rope",globalNavPath=[{ href: '/pathfinderRPG/prd/spellIndex.html', name: 'Spell Index' }];</script>
-<script type = "text/javascript">
-$(function () {
-	if(!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
-			highlightNavLocation(globalNavPath);
-		}
-	});
-</script>
 </body>
-
-
 </html>

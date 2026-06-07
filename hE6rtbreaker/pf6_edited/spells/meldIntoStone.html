@@ -1,84 +1,27 @@
 <!DOCTYPE html>
-
-<html>
-
-
+<html lang="en">
 <head>
-	<meta charset = "utf-8">
-	<meta name = "viewport" content = "width=device-width, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
-	<title>Meld into Stone</title>
-	<link rel = "stylesheet" type = "text/css" href = "../../include/prd-stylesheet.css" />
-	<link rel = "stylesheet" type = "text/css" href = "http://cdn.paizo.com/chrome/style/jquery.dataTables.min.css" />
-	<link rel = "stylesheet" type = "text/css" href = "http://cdn.paizo.com/chrome/style/jquery-ui.min.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Meld into Stone</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../pf6.css">
 </head>
-
 <body>
-
-<div style="width: 100%; background: #c8433f; padding: 0.5rem;">
-<article style="color: #fffdf8;">
-<p style="font-size: 0.85rem; text-align: center;">You are viewing the legacy Pathfinder Reference Document website.<br />Paizo Inc. has now partnered with Archives of Nethys to provide the online version of the Pathfinder RPG rules at <a href = "http://pfrd.info" style = "color: #fffdf8;"><b>pfrd.info</b></a>.<br />
-<a href = "http://paizo.com/community/blog/v5748dyo6sg93?Big-PathfinderStarfinder-Reference-Document-News" style = "color: #fffdf8;">Learn more</a>.</p>
-</article>
+<div class="content">
+<p class="stat-block-title" id="meld-into-stone"><b>Meld into Stone</b></p>
+<p class="stat-block-1"><b>School</b> transmutation [earth]; <b>Level</b> cleric 3, druid 3</p>
+<p class="stat-block-1"><b>Casting Time</b> 1 standard action</p>
+<p class="stat-block-1"><b>Components</b> V, S, DF</p>
+<p class="stat-block-1"><b>Range</b> personal</p>
+<p class="stat-block-1"><b>Target</b> you</p>
+<p class="stat-block-1"><b>Duration</b> 10 min./level</p>
+<p><i>Meld into stone </i>enables you to meld your body and possessions into a single block of stone. The stone must be large enough to accommodate your body in all three dimensions. When the casting is complete, you and not more than 100 pounds of nonliving gear merge with the stone. If either condition is violated, the spell fails and is wasted.</p>
+<p>While in the stone, you remain in contact, however tenuous, with the face of the stone through which you melded. You remain aware of the passage of time and can cast spells on yourself while hiding in the stone. Nothing that goes on outside the stone can be seen, but you can still hear what happens around you. Minor physical damage to the stone does not harm you, but its partial destruction (to the extent that you no longer fit within it) expels you and deals you 5d6 points of damage. The stone's complete destruction expels you and slays you instantly unless you make a DC 18 <a href="../combat.html#fortitude">Fortitude</a> save. Even if you make your save, you still take 5d6 points of damage.</p>
+<p>Any time before the duration expires, you can step out of the stone through the surface that you entered. If the spell's duration expires or the effect is dispelled before you voluntarily exit the stone, you are violently expelled and take 5d6 points of damage.</p>
+<p>The following spells harm you if cast upon the stone that you are occupying. <i><a href="stoneToFlesh.html#stone-to-flesh">Stone to flesh</a> </i>expels you and deals you 5d6 points of damage. S<i><a href="stoneShape.html#stone-shape">tone shape</a> </i>deals 3d6 points of damage but does not expel you. <i><a href="transmuteRockToMud.html#transmute-rock-to-mud">Transmute rock to mud</a> </i>expels you and then slays you instantly unless you make a DC 18 <a href="../combat.html#fortitude">Fortitude</a> save, in which case you are merely expelled. Finally, <i><a href="passwall.html#passwall">passwall</a> </i>expels you without damage.</p>
 </div>
-
-<div class = "header">
-	<!-- Logos -->
-	<div class = "header-content">
-		<div id = "header-full">
-			<a href = "http://legacy.aonprd.com"><img src = "../../include/PRD-Logo.png" alt = "Pathfinder Reference Document" style = "margin: 15px 0 0 0;" /></a>
-		</div>
-		<div id = "header-mobile">
-			<a href = "http://legacy.aonprd.com"><img src = "../../include/PRD-Logo_Mobile.png" alt = "Pathfinder Reference Document" style = "margin: 5px 0 0 10px;" /></a>
-		</div>
-	</div>
-
-</div>
-
-<div class = "body-content">
-
-	<div id = "nav-path"></div>
-
-	<div class = "body">
-
-        
-				<p id="meld-into-stone" class="stat-block-title"><b>Meld into Stone</b></p>
-				<p class="stat-block-1"><b>School</b> transmutation [earth]; <b>Level</b> cleric 3, druid 3</p>
-				<p class="stat-block-1"><b>Casting Time</b> 1 standard action</p>
-				<p class="stat-block-1"><b>Components</b> V, S, DF</p>
-				<p class="stat-block-1"><b>Range</b> personal</p>
-				<p class="stat-block-1"><b>Target</b> you</p>
-				<p class="stat-block-1"><b>Duration</b> 10 min./level</p>
-				<p><i>Meld into stone </i>enables you to meld your body and possessions into a single block of stone. The stone must be large enough to accommodate your body in all three dimensions. When the casting is complete, you and not more than 100 pounds of nonliving gear merge with the stone. If either condition is violated, the spell fails and is wasted.</p>
-				<p>While in the stone, you remain in contact, however tenuous, with the face of the stone through which you melded. You remain aware of the passage of time and can cast spells on yourself while hiding in the stone. Nothing that goes on outside the stone can be seen, but you can still hear what happens around you. Minor physical damage to the stone does not harm you, but its partial destruction (to the extent that you no longer fit within it) expels you and deals you 5d6 points of damage. The stone's complete destruction expels you and slays you instantly unless you make a DC 18 <a href="../combat.html#fortitude" >Fortitude</a> save. Even if you make your save, you still take 5d6 points of damage.</p>
-				<p>Any time before the duration expires, you can step out of the stone through the surface that you entered. If the spell's duration expires or the effect is dispelled before you voluntarily exit the stone, you are violently expelled and take 5d6 points of damage.</p>
-				<p>The following spells harm you if cast upon the stone that you are occupying. <i><a href="stoneToFlesh.html#stone-to-flesh" >Stone to flesh</a> </i>expels you and deals you 5d6 points of damage. S<i><a href="stoneShape.html#stone-shape" >tone shape</a> </i>deals 3d6 points of damage but does not expel you. <i><a href="transmuteRockToMud.html#transmute-rock-to-mud" >Transmute rock to mud</a> </i>expels you and then slays you instantly unless you make a DC 18 <a href="../combat.html#fortitude" >Fortitude</a> save, in which case you are merely expelled. Finally, <i><a href="passwall.html#passwall" >passwall</a> </i>expels you without damage.</p>
-        	<div class = "footer">
-		<p>
-			<!--<a href = "/threads/rzs2soys">Report a Problem</a><br /><br />
-			&copy;2002-2016 Paizo, Inc.&reg;<br />
-			Paizo Inc., Paizo, Pathfinder, and the Pathfinder logo are registered trademarks of Paizo Inc., and<br />
-			Pathfinder Roleplaying Game and Pathfinder Campaign Setting are trademarks of Paizo Inc.<br />-->
-			<a href="../../openGameLicense.html">Open Game License</a>.
-		</p>
-	</div>
-
-	</div>
-</div>
-
-<script type = "text/javascript" src = "../../include/js/jquery-1.10.2.min.js"></script>
-<script type = "text/javascript" src = "../../include/js/jquery.cookie.js"></script>
-<script type = "text/javascript" src = "http://cdn.paizo.com/chrome/js/jquery.dataTables.min.js"></script>
-<script type = "text/javascript" src = "../../include/js/prd-jquery.js"></script>
-<script type = "text/javascript" src = "../../include/js/prd-scripts.js"></script>
-<script type = "text/javascript">var globalTitle="Meld into Stone",globalNavPath=[{ href: '/pathfinderRPG/prd/spellIndex.html', name: 'Spell Index' }];</script>
-<script type = "text/javascript">
-$(function () {
-	if(!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
-			highlightNavLocation(globalNavPath);
-		}
-	});
-</script>
 </body>
-
-
 </html>

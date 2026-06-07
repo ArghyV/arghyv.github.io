@@ -1,86 +1,29 @@
 <!DOCTYPE html>
-
-<html>
-
-
+<html lang="en">
 <head>
-	<meta charset = "utf-8">
-	<meta name = "viewport" content = "width=device-width, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0">
-	<title>Detect Thoughts</title>
-	<link rel = "stylesheet" type = "text/css" href = "../../include/prd-stylesheet.css" />
-	<link rel = "stylesheet" type = "text/css" href = "http://cdn.paizo.com/chrome/style/jquery.dataTables.min.css" />
-	<link rel = "stylesheet" type = "text/css" href = "http://cdn.paizo.com/chrome/style/jquery-ui.min.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Detect Thoughts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../pf6.css">
 </head>
-
 <body>
-
-<div style="width: 100%; background: #c8433f; padding: 0.5rem;">
-<article style="color: #fffdf8;">
-<p style="font-size: 0.85rem; text-align: center;">You are viewing the legacy Pathfinder Reference Document website.<br />Paizo Inc. has now partnered with Archives of Nethys to provide the online version of the Pathfinder RPG rules at <a href = "http://pfrd.info" style = "color: #fffdf8;"><b>pfrd.info</b></a>.<br />
-<a href = "http://paizo.com/community/blog/v5748dyo6sg93?Big-PathfinderStarfinder-Reference-Document-News" style = "color: #fffdf8;">Learn more</a>.</p>
-</article>
+<div class="content">
+<p class="stat-block-title" id="detect-thoughts"><b>Detect Thoughts</b></p>
+<p class="stat-block-1"><b>School</b> divination [mind-affecting]; <b>Level</b> bard 2, sorcerer/wizard 2</p>
+<p class="stat-block-1"><b>Casting Time</b> 1 standard action</p>
+<p class="stat-block-1"><b>Components</b> V, S, F/DF (a copper piece)</p>
+<p class="stat-block-1"><b>Range</b> 60 ft.</p>
+<p class="stat-block-1"><b>Area</b> cone-shaped emanation</p>
+<p class="stat-block-1"><b>Duration</b> concentration, up to 1 min./level (D)</p>
+<p class="stat-block-1"><b>Saving Throw </b><a href="../combat.html#will">Will</a> negates; see text; <b><a href="../glossary.html#spell-resistance">Spell Resistance</a></b> no</p>
+<p>You detect surface thoughts. The amount of information revealed depends on how long you study a particular area or subject.</p>
+<p><i>1st Round</i>: Presence or absence of thoughts (from conscious creatures with <a href="../gettingStarted.html#intelligence">Intelligence</a> scores of 1 or higher).</p>
+<p><i>2nd Round</i>: Number of thinking minds and the <a href="../gettingStarted.html#intelligence">Intelligence</a> score of each. If the highest <a href="../gettingStarted.html#intelligence">Intelligence</a> is 26 or higher (and at least 10 points higher than your own <a href="../gettingStarted.html#intelligence">Intelligence</a> score), you are <a href="../glossary.html#stunned">stunned</a> for 1 round and the spell ends. This spell does not let you determine the location of the thinking minds if you can't see the creatures whose thoughts you are detecting.</p>
+<p><i>3rd Round</i>: Surface thoughts of any mind in the area. A target's <a href="../combat.html#will">Will</a> save prevents you from reading its thoughts, and you must cast <i>detect thoughts </i>again to have another chance. Creatures of animal intelligence (<a href="../gettingStarted.html#intelligence">Int</a> 1 or 2) have simple, instinctual thoughts.</p>
+<p>Each round, you can turn to detect thoughts in a new area. The spell can penetrate barriers, but 1 foot of stone, 1 inch of common metal, a thin sheet of lead, or 3 feet of wood or dirt blocks it.</p>
 </div>
-
-<div class = "header">
-	<!-- Logos -->
-	<div class = "header-content">
-		<div id = "header-full">
-			<a href = "http://legacy.aonprd.com"><img src = "../../include/PRD-Logo.png" alt = "Pathfinder Reference Document" style = "margin: 15px 0 0 0;" /></a>
-		</div>
-		<div id = "header-mobile">
-			<a href = "http://legacy.aonprd.com"><img src = "../../include/PRD-Logo_Mobile.png" alt = "Pathfinder Reference Document" style = "margin: 5px 0 0 10px;" /></a>
-		</div>
-	</div>
-
-</div>
-
-<div class = "body-content">
-
-	<div id = "nav-path"></div>
-
-	<div class = "body">
-
-        
-				<p id="detect-thoughts" class="stat-block-title"><b>Detect Thoughts</b></p>
-				<p class="stat-block-1"><b>School</b> divination [mind-affecting]; <b>Level</b> bard 2, sorcerer/wizard 2</p>
-				<p class="stat-block-1"><b>Casting Time</b> 1 standard action</p>
-				<p class="stat-block-1"><b>Components</b> V, S, F/DF (a copper piece)</p>
-				<p class="stat-block-1"><b>Range</b> 60 ft.</p>
-				<p class="stat-block-1"><b>Area</b> cone-shaped emanation</p>
-				<p class="stat-block-1"><b>Duration</b> concentration, up to 1 min./level (D)</p>
-				<p class="stat-block-1"><b>Saving Throw </b><a href="../combat.html#will" >Will</a> negates; see text; <b><a href = "../glossary.html#spell-resistance" >Spell Resistance</a></b> no</p>
-				<p>You detect surface thoughts. The amount of information revealed depends on how long you study a particular area or subject.</p>
-				<p><i>1st Round</i>: Presence or absence of thoughts (from conscious creatures with <a href = "../gettingStarted.html#intelligence" >Intelligence</a> scores of 1 or higher).</p>
-				<p><i>2nd Round</i>: Number of thinking minds and the <a href = "../gettingStarted.html#intelligence" >Intelligence</a> score of each. If the highest <a href = "../gettingStarted.html#intelligence" >Intelligence</a> is 26 or higher (and at least 10 points higher than your own <a href = "../gettingStarted.html#intelligence" >Intelligence</a> score), you are <a href = "../glossary.html#stunned" >stunned</a> for 1 round and the spell ends. This spell does not let you determine the location of the thinking minds if you can't see the creatures whose thoughts you are detecting.</p>
-				<p><i>3rd Round</i>: Surface thoughts of any mind in the area. A target's <a href="../combat.html#will" >Will</a> save prevents you from reading its thoughts, and you must cast <i>detect thoughts </i>again to have another chance. Creatures of animal intelligence (<a href = "../gettingStarted.html#intelligence" >Int</a> 1 or 2) have simple, instinctual thoughts.</p>
-				<p>Each round, you can turn to detect thoughts in a new area. The spell can penetrate barriers, but 1 foot of stone, 1 inch of common metal, a thin sheet of lead, or 3 feet of wood or dirt blocks it.</p>
-        	<div class = "footer">
-		<p>
-			<!--<a href = "/threads/rzs2soys">Report a Problem</a><br /><br />
-			&copy;2002-2016 Paizo, Inc.&reg;<br />
-			Paizo Inc., Paizo, Pathfinder, and the Pathfinder logo are registered trademarks of Paizo Inc., and<br />
-			Pathfinder Roleplaying Game and Pathfinder Campaign Setting are trademarks of Paizo Inc.<br />-->
-			<a href="../../openGameLicense.html">Open Game License</a>.
-		</p>
-	</div>
-
-	</div>
-</div>
-
-<script type = "text/javascript" src = "../../include/js/jquery-1.10.2.min.js"></script>
-<script type = "text/javascript" src = "../../include/js/jquery.cookie.js"></script>
-<script type = "text/javascript" src = "http://cdn.paizo.com/chrome/js/jquery.dataTables.min.js"></script>
-<script type = "text/javascript" src = "../../include/js/prd-jquery.js"></script>
-<script type = "text/javascript" src = "../../include/js/prd-scripts.js"></script>
-<script type = "text/javascript">var globalTitle="Detect Thoughts",globalNavPath=[{ href: '/pathfinderRPG/prd/spellIndex.html', name: 'Spell Index' }];</script>
-<script type = "text/javascript">
-$(function () {
-	if(!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ) {
-			highlightNavLocation(globalNavPath);
-		}
-	});
-</script>
 </body>
-
-
 </html>
