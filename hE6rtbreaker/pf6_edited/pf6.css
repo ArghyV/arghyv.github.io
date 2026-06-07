@@ -17,6 +17,7 @@
   --font-table:   'Inter', system-ui, sans-serif;
   --font-header:  'IM Fell English', Georgia, serif;
 
+
   --col-gap: 2.5rem;
   --line:    1.6;
 }
@@ -39,7 +40,7 @@ body {
 
 @media (min-width: 768px) {
   .content {
-    columns: 2;
+    columns: 1;
     column-gap: var(--col-gap);
     column-rule: 1px solid var(--rule);
   }
