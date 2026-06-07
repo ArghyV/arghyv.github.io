@@ -1,0 +1,129 @@
+/* pf6.css — hE6rtbreaker stylesheet
+   Fonts: IM Fell English (headers) · Inter (body, tables)
+   Layout: single column mobile → two newspaper columns on desktop
+*/
+
+/* ── Reset ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+/* ── Base ───────────────────────────────────────────────── */
+:root {
+  --ink:    #111111;
+  --paper:  #ffffff;
+  --rule:   #cccccc;
+  --accent: #222222;
+
+  --font-body:    'Inter', system-ui, sans-serif;
+  --font-table:   'Inter', system-ui, sans-serif;
+  --font-header:  'IM Fell English', Georgia, serif;
+
+  --col-gap: 2.5rem;
+  --line:    1.6;
+}
+
+html { font-size: 16px; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-body);
+  line-height: var(--line);
+  padding: 1.5rem 1rem;
+}
+
+/* ── Two-column newspaper layout (desktop only) ─────────── */
+.content {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .content {
+    columns: 2;
+    column-gap: var(--col-gap);
+    column-rule: 1px solid var(--rule);
+  }
+
+  /* Keep tables, figures, and wide stat blocks from splitting */
+  table, figure, .stat-block, h1, h2 {
+    break-inside: avoid;
+    column-span: none;
+  }
+
+  /* Chapter-level h1 spans both columns */
+  h1:first-child {
+    column-span: all;
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 0.4rem;
+    margin-bottom: 1.2rem;
+  }
+}
+
+/* ── Typography ─────────────────────────────────────────── */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-header);
+  color: var(--accent);
+  line-height: 1.25;
+  margin: 1.4em 0 0.4em;
+}
+
+h1 { font-size: 1.9rem; }
+h2 { font-size: 1.45rem; border-bottom: 1px solid var(--rule); padding-bottom: 0.2rem; }
+h3 { font-size: 1.2rem; }
+h4 { font-size: 1.05rem; font-style: italic; }
+h5, h6 { font-size: 1rem; }
+
+p { margin-bottom: 0.75rem; }
+
+a { color: var(--ink); text-underline-offset: 2px; }
+a:hover { opacity: 0.6; }
+
+i, em { font-style: italic; }
+b, strong { font-weight: 700; }
+
+/* ── Tables ─────────────────────────────────────────────── */
+table {
+  font-family: var(--font-table);
+  font-size: 0.875rem;
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+  break-inside: avoid;
+}
+
+th, td {
+  border: 1px solid var(--rule);
+  padding: 0.3rem 0.6rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 500;
+  font-family: var(--font-header);
+  font-size: 0.85rem;
+  letter-spacing: 0.03em;
+}
+
+tr:nth-child(even) td { background: #f7f7f7; }
+
+/* ── Stat blocks ────────────────────────────────────────── */
+.stat-block-title {
+  font-family: var(--font-header);
+  font-size: 1.15rem;
+  font-weight: bold;
+  border-bottom: 1px solid var(--ink);
+  margin-top: 1.2rem;
+  margin-bottom: 0.2rem;
+}
+
+.stat-block-1 {
+  font-size: 0.9rem;
+  margin-bottom: 0.15rem;
+}
+
+/* ── Misc inherited classes from original markup ────────── */
+.table-caption { font-weight: bold; margin-bottom: 0.25rem; }
+.indent { padding-left: 1.5rem; }
