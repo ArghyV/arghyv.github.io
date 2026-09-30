@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><title>Cage Palant</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>html,body{margin:0;height:100%;background:#111;display:flex;align-items:center;justify-content:center}canvas{max-width:100%;max-height:100%;background:#1c2b1c}</style></head>
+<body><canvas id="game" width="960" height="640"></canvas>
+<script>
+"use strict";
+// ===== Constants and tuning =====
+const CAGE_WIDTH = 14, CAGE_LENGTH = 32, CEILING_HEIGHT = 10;
+const GRAVITY = 9.8, FLOOR_RESTITUTION = 0.55, WALL_RESTITUTION = 0.6, CEILING_RESTITUTION = 0.5;
+const ROLLING_FRICTION = 1.2, REST_SPEED = 0.4, MIN_BOUNCE_IMPACT = 1, MAX_PROBE_STEPS = 900;
+const STEP = 1 / 60;
+const PLAYERS_PER_TEAM = 4, STRIKES_TO_ELIMINATE = 3, INNINGS_PER_TEAM = 2;
+const RUNNER_SPEED = 6, BATTER_SPEED = 4, FIELDER_SPEED = 5.5, HOLDER_SPEED = 4.5;
+const THROW_SPEED = 20, PASS_SPEED = 14, MAX_THROW_ERROR_RAD = 0.25, THROW_RANGE = 24;
+const PLAYER_RADIUS = 0.5, BALL_RADIUS = 0.25, PICKUP_EXTRA_REACH = 0.35;
+const SOAK_HEIGHT_LIMIT = 2, HOLD_LIMIT_SECONDS = 4, HOLD_WARNING_SECONDS = 1.5, HOME_SAFE_RADIUS = 1.5;
+const HOLD_HEIGHT = 1.2, RUNNER_CHEST_HEIGHT = 1, STRIKE_HEIGHT = 1;
+const HOME = { x: CAGE_WIDTH / 2, y: 2.5 };
+const BATTING_BOX = { minX: HOME.x - 3, maxX: HOME.x + 3, minY: 1.5, maxY: 4 };
+const TRAP = { x: CAGE_WIDTH / 2, y: 0.6, z: 0.4 };
+const PITCH_BASE_SECONDS = 0.7, PITCH_SECONDS_PER_METER = 0.14;
+const HIT_QUALITIES = [
+  { name: "Perfect", windowSeconds: 0.05, power: 1 },
+  { name: "Good", windowSeconds: 0.12, power: 0.85 },
+  { name: "Weak", windowSeconds: 0.2, power: 0.55 }];
+const BUNT_POWER = 0.2, BUNT_ANGLE_DEG = 15, MAX_AIM_DEG = 35;
+const LAUNCH_ANGLE_DEG = { flat: 30, medium: 40, lob: 50 };
+const TUNED_ANGLES_DEG = [30, 35, 40, 45, 50];
+const LOCK_CYCLE_SECONDS = 1, LOCK_TOLERANCE = 0.6, LOCK_RING_MAX_PX = 60, LOCK_RING_MIN_PX = 12;
+const PLAY_END_DELAY = 1.3, PLAY_TIMEOUT = 25, CPU_DANGER_DISTANCE = 8, AUTO_ADVANCE_SECONDS = 1.5;
+const FIELDER_HOME_POSITIONS = [{ x: 3, y: 18 }, { x: 11, y: 18 }, { x: 5, y: 26 }, { x: 9, y: 26 }];
+const DIFFICULTIES = {
+  Easy: { reaction: 1.0, timingError: 0.12, throwError: 0.6, windowScale: 1.5 },
+  Normal: { reaction: 0.6, timingError: 0.06, throwError: 0.3, windowScale: 1 },
+  Hard: { reaction: 0.25, timingError: 0.03, throwError: 0.1, windowScale: 1 } };
+const MODES = [
+  { name: "1P vs CPU", controllers: ["kb1", "cpu"] },
+  { name: "2P local", controllers: ["kb1", "kb2"] },
+  { name: "CPU vs CPU", controllers: ["cpu", "cpu"] }];
+const TEAM_STYLES = [{ name: "Reds", color: "#e63946" }, { name: "Blues", color: "#4dabf7" }];
+const PHASE = { ready: "readyToPitch", pitch: "pitchInFlight", play: "ballInPlay", playEnded: "playEnded", inningEnded: "inningEnded", matchEnded: "matchEnded" };
+const BASE_STATS = { swingPower: 1, runSpeed: 1, throwSpeed: 1, throwAccuracy: 1, holdLimitBonus: 0 };
+
+// ===== Math helpers and seedable RNG =====
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const lerp = (a, b, t) => a + (b - a) * t;
+const degToRad = d => d * Math.PI / 180;
+const distance2D = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+function createRng(seed) {
+  let s = seed >>> 0;
+  return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+const random = createRng(Date.now());
+function randomNormal() { let sum = 0; for (let i = 0; i < 6; i++) sum += random(); return (sum - 3) / Math.SQRT1_2; }
+function nearestTo(point, candidates) { return candidates.reduce((best, c) => distance2D(c, point) < distance2D(best, point) ? c : best); }
+const stat = (actor, name) => actor.stats[name]; // single read point for all gameplay stats (stretch hook)
+
+// ===== Ball physics =====
+function createBall() {
+  return { x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, px: 0, py: 0, pz: 0, state: "dead", holder: null, floorBounces: 0, backWallHits: 0, lastImpact: 0, pickupBlockedUntil: 0 };
+}
+function stepBall(ball, dt) {
+  if (ball.state === "held" || ball.state === "dead") return;
+  ball.vz -= GRAVITY * dt;
+  ball.x += ball.vx * dt; ball.y += ball.vy * dt; ball.z += ball.vz * dt;
+  bounceOffWalls(ball); bounceOffCeiling(ball); bounceOffFloor(ball, dt);
+}
+function bounceOffWalls(ball) {
+  const r = BALL_RADIUS;
+  if (ball.x < r) { ball.x = r; reflect(ball, "vx"); } else if (ball.x > CAGE_WIDTH - r) { ball.x = CAGE_WIDTH - r; reflect(ball, "vx"); }
+  if (ball.y < r) { ball.y = r; reflect(ball, "vy"); }
+  else if (ball.y > CAGE_LENGTH - r) { ball.y = CAGE_LENGTH - r; reflect(ball, "vy"); ball.backWallHits++; }
+}
+function reflect(ball, axis) { ball.lastImpact = Math.max(ball.lastImpact, Math.abs(ball[axis])); ball[axis] = -ball[axis] * WALL_RESTITUTION; }
+function bounceOffCeiling(ball) {
+  if (ball.z > CEILING_HEIGHT - BALL_RADIUS) { ball.z = CEILING_HEIGHT - BALL_RADIUS; ball.vz = -Math.abs(ball.vz) * CEILING_RESTITUTION; }
+}
+function bounceOffFloor(ball, dt) {
+  if (ball.z < BALL_RADIUS) {
+    ball.z = BALL_RADIUS;
+    const impact = -ball.vz;
+    if (impact > MIN_BOUNCE_IMPACT) { ball.floorBounces++; ball.lastImpact = Math.max(ball.lastImpact, impact); if (ball.state === "thrown") ball.state = "loose"; }
+    ball.vz = impact > MIN_BOUNCE_IMPACT ? impact * FLOOR_RESTITUTION : 0;
+  }
+  const isRolling = ball.z <= BALL_RADIUS + 1e-3 && ball.vz === 0;
+  if (!isRolling) return;
+  const speed = Math.hypot(ball.vx, ball.vy), slowed = Math.max(0, speed - ROLLING_FRICTION * dt);
+  const scale = speed > 0 ? slowed / speed : 0;
+  ball.vx *= scale; ball.vy *= scale;
+  if (slowed < REST_SPEED) { ball.vx = 0; ball.vy = 0; }
+}
+function launchBall(ball, from, z, vx, vy, vz, state) {
+  Object.assign(ball, { x: from.x, y: from.y, z, vx, vy, vz, state, holder: null, floorBounces: 0, backWallHits: 0 });
+}
+function launchToward(ball, from, target, speed, errorRad, targetHeight, state) {
+  const dx = target.x - from.x, dy = target.y - from.y, flightTime = Math.max(Math.hypot(dx, dy) / speed, 0.05);
+  const angle = Math.atan2(dy, dx) + errorRad;
+  const vz = (targetHeight - HOLD_HEIGHT + 0.5 * GRAVITY * flightTime * flightTime) / flightTime;
+  launchBall(ball, from, HOLD_HEIGHT, Math.cos(angle) * speed, Math.sin(angle) * speed, vz, state);
+}
+
+// ===== Tuning derivation (full-power speed comes from the cage, not a hardcoded number) =====
+function simulateHit(speed, angleDeg, startY) {
+  const ball = createBall(), angle = degToRad(angleDeg);
+  Object.assign(ball, { x: CAGE_WIDTH / 2, y: startY, z: STRIKE_HEIGHT, state: "batted", vy: speed * Math.cos(angle), vz: speed * Math.sin(angle) });
+  for (let i = 0; i < MAX_PROBE_STEPS && !ball.floorBounces && !ball.backWallHits; i++) stepBall(ball, STEP);
+  return { distance: ball.y - startY, reachedBackWallOnFly: ball.backWallHits > 0 && ball.floorBounces === 0 };
+}
+function deriveFullPowerHitSpeed() {
+  const SEARCH_STEP = 0.05, MIN_SPEED = 10, MAX_SPEED = 40;
+  for (let speed = MIN_SPEED; speed <= MAX_SPEED; speed += SEARCH_STEP) {
+    if (TUNED_ANGLES_DEG.every(angle => simulateHit(speed, angle, BATTING_BOX.minY).reachedBackWallOnFly)) return speed;
+  }
+  return MAX_SPEED;
+}
+const FULL_POWER_HIT_SPEED = deriveFullPowerHitSpeed();
+function buildTuningReport() {
+  const lines = [`FULL_POWER_HIT_SPEED ${FULL_POWER_HIT_SPEED.toFixed(2)} m/s   (WALL = reaches back wall on the fly)`];
+  for (const quality of HIT_QUALITIES) {
+    const startY = quality.name === "Perfect" ? BATTING_BOX.minY : BATTING_BOX.maxY;
+    const cells = TUNED_ANGLES_DEG.map(angle => {
+      const result = simulateHit(FULL_POWER_HIT_SPEED * quality.power, angle, startY);
+      return `${angle}\u00B0:${result.reachedBackWallOnFly ? "WALL" : result.distance.toFixed(1) + "m"}`;
+    });
+    lines.push(`${quality.name.padEnd(8)} ${cells.join("  ")}`);
+  }
+  return lines;
+}
+const TUNING_REPORT = buildTuningReport();
+
+// ===== Audio =====
+let audioContext = null;
+function beep(frequency, seconds, type = "square", volume = 0.06) {
+  if (!audioContext) return;
+  const osc = audioContext.createOscillator(), gain = audioContext.createGain();
+  osc.type = type; osc.frequency.value = frequency; gain.gain.value = volume;
+  gain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + seconds);
+  osc.connect(gain).connect(audioContext.destination); osc.start(); osc.stop(audioContext.currentTime + seconds);
+}
+const sounds = { hit: () => beep(300, 0.1), bounce: () => beep(140, 0.05, "triangle"), throwBall: () => beep(500, 0.12, "sawtooth"), soak: () => beep(90, 0.3, "sawtooth"), score: () => { beep(660, 0.1); setTimeout(() => beep(880, 0.15), 90); } };
+
+// ===== Input: keyboards + gamepad map to abstract intents =====
+const keysDown = new Set();
+const KEY_MAPS = {
+  kb1: { left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp", down: "ArrowDown", a: "KeyZ", b: "KeyX", trap: "KeyC" },
+  kb2: { left: "KeyA", right: "KeyD", up: "KeyW", down: "KeyS", a: "KeyF", b: "KeyG", trap: "KeyH" } };
+const STICK_DEADZONE = 0.3;
+const GAMEPAD_BUTTON = { a: 0, b: 1, trap: 3, start: 9, up: 12, down: 13, left: 14, right: 15 };
+const activeGamepad = () => [...(navigator.getGamepads ? navigator.getGamepads() : [])].find(Boolean);
+function readRawInput(controller) {
+  const map = KEY_MAPS[controller], held = action => keysDown.has(map[action]);
+  const raw = { mx: (held("right") ? 1 : 0) - (held("left") ? 1 : 0), my: (held("up") ? 1 : 0) - (held("down") ? 1 : 0), a: held("a"), b: held("b"), trap: held("trap") };
+  const pad = controller === "kb1" ? activeGamepad() : null;
+  if (pad) {
+    const pressed = i => pad.buttons[i] && pad.buttons[i].pressed;
+    const stickX = Math.abs(pad.axes[0]) > STICK_DEADZONE ? Math.sign(pad.axes[0]) : 0, stickY = Math.abs(pad.axes[1]) > STICK_DEADZONE ? -Math.sign(pad.axes[1]) : 0;
+    raw.mx = raw.mx || stickX || (pressed(GAMEPAD_BUTTON.right) ? 1 : 0) - (pressed(GAMEPAD_BUTTON.left) ? 1 : 0);
+    raw.my = raw.my || stickY || (pressed(GAMEPAD_BUTTON.up) ? 1 : 0) - (pressed(GAMEPAD_BUTTON.down) ? 1 : 0);
+    raw.a = raw.a || pressed(GAMEPAD_BUTTON.a); raw.b = raw.b || pressed(GAMEPAD_BUTTON.b); raw.trap = raw.trap || pressed(GAMEPAD_BUTTON.trap);
+  }
+  return raw;
+}
+const previousRawInput = {};
+function blankIntent() { return { mx: 0, my: 0, aHeld: false, aPressed: false, aReleased: false, bPressed: false, trapPressed: false, passTo: null }; }
+function readHumanIntent(controller) {
+  const raw = readRawInput(controller), before = previousRawInput[controller] || {};
+  previousRawInput[controller] = raw;
+  return { ...blankIntent(), mx: raw.mx, my: raw.my, aHeld: raw.a, aPressed: raw.a && !before.a, aReleased: !raw.a && !!before.a, bPressed: raw.b && !before.b, trapPressed: raw.trap && !before.trap };
+}
+let startWasPressed = false;
+function pollGamepadStart() {
+  const pad = activeGamepad(), pressed = !!(pad && pad.buttons[GAMEPAD_BUTTON.start] && pad.buttons[GAMEPAD_BUTTON.start].pressed);
+  if (pressed && !startWasPressed) handleMenuKey("Enter");
+  startWasPressed = pressed;
+}
+addEventListener("keydown", event => {
+  if (event.code.startsWith("Arrow")) event.preventDefault();
+  if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  keysDown.add(event.code);
+  if (!event.repeat) handleMenuKey(event.code);
+});
+addEventListener("keyup", event => keysDown.delete(event.code));
+addEventListener("blur", () => keysDown.clear());
+
+// ===== Game state =====
+const game = { screen: "title", modeIndex: 0, difficulty: "Normal", paused: false, debug: false, teams: [], ball: createBall(), time: 0, feedback: { text: "", until: 0 } };
+function createActor(color) { return { x: 0, y: 0, px: 0, py: 0, color, alive: true, strikes: 0, stats: { ...BASE_STATS } }; }
+function createTeam(style, controller) {
+  return { ...style, controller, score: 0, players: Array.from({ length: PLAYERS_PER_TEAM }, () => createActor(style.color)), cpu: {} };
+}
+const battingTeam = () => game.teams[game.battingIndex], fieldingTeam = () => game.teams[1 - game.battingIndex];
+const isCpuOnly = () => game.teams.every(team => team.controller === "cpu");
+const showFeedback = text => { game.feedback = { text, until: game.time + 1.2 }; };
+const placeActor = (actor, x, y) => { actor.x = actor.px = x; actor.y = actor.py = y; };
+
+function startMatch() {
+  const mode = MODES[game.modeIndex];
+  game.teams = TEAM_STYLES.map((style, i) => createTeam(style, mode.controllers[i]));
+  game.halfIndex = 0; game.screen = "playing"; game.paused = false;
+  startHalfInning();
+}
+function startHalfInning() {
+  game.battingIndex = game.halfIndex % 2; game.halfRuns = 0;
+  game.order = [...battingTeam().players];
+  game.order.forEach(batter => { batter.alive = true; batter.strikes = 0; });
+  prepareNextBatter();
+}
+function prepareNextBatter() {
+  game.phase = PHASE.ready; game.batter = game.order[0]; game.runner = null; game.playTimer = 0;
+  placeActor(game.batter, HOME.x, HOME.y);
+  fieldingTeam().players.forEach((f, i) => placeActor(f, FIELDER_HOME_POSITIONS[i].x, FIELDER_HOME_POSITIONS[i].y));
+  Object.assign(game.ball, { x: TRAP.x, y: TRAP.y, z: TRAP.z, vx: 0, vy: 0, vz: 0, state: "dead", holder: null });
+  Object.assign(game, { ballRunScored: false, runnerRunScored: false, leftHome: false, swingUsed: false, holdTimer: 0, lockTimer: 0, controlledFielder: null });
+  Object.assign(battingTeam().cpu, { trapDelay: 0.5 + random() * 0.8, targetX: lerp(BATTING_BOX.minX, BATTING_BOX.maxX, random()), swingTime: null });
+  fieldingTeam().cpu.throwing = false;
+}
+function finishInning() {
+  game.phase = PHASE.inningEnded; game.autoAdvanceTimer = AUTO_ADVANCE_SECONDS; game.halfIndex++;
+  const bothTeamsHaveBatted = game.halfIndex % 2 === 0, totalHalves = 2 * INNINGS_PER_TEAM;
+  game.matchDecided = bothTeamsHaveBatted && game.halfIndex >= totalHalves && game.teams[0].score !== game.teams[1].score;
+}
+function continueAfterInning() {
+  if (game.matchDecided) { game.phase = PHASE.matchEnded; game.autoAdvanceTimer = 3 * AUTO_ADVANCE_SECONDS; } else startHalfInning();
+}
+function endPlay() { if (game.phase !== PHASE.playEnded) { game.phase = PHASE.playEnded; game.playEndTimer = PLAY_END_DELAY; } }
+function finishPlay() {
+  game.order.shift();
+  if (game.batter.alive) game.order.push(game.batter);
+  if (game.order.length === 0) finishInning(); else prepareNextBatter();
+}
+function eliminateBatter(reason) { game.batter.alive = false; showFeedback(reason); sounds.soak(); endPlay(); }
+function registerStrike() {
+  game.batter.strikes++; showFeedback("Miss"); beep(120, 0.15);
+  if (game.batter.strikes >= STRIKES_TO_ELIMINATE) eliminateBatter("Strike out!"); else endPlay();
+}
+function addRun() { battingTeam().score++; game.halfRuns++; showFeedback("+1 run"); sounds.score(); }
+
+// ===== Batting =====
+function moveWithinBounds(actor, mx, my, speed, bounds) {
+  const length = Math.hypot(mx, my) || 1, scale = Math.min(1, length) / length;
+  actor.x = clamp(actor.x + mx * scale * speed * STEP, bounds.minX, bounds.maxX);
+  actor.y = clamp(actor.y + my * scale * speed * STEP, bounds.minY, bounds.maxY);
+}
+const CAGE_BOUNDS = { minX: PLAYER_RADIUS, maxX: CAGE_WIDTH - PLAYER_RADIUS, minY: PLAYER_RADIUS, maxY: CAGE_LENGTH - PLAYER_RADIUS };
+function firePitch() {
+  const batter = game.batter, distance = Math.hypot(batter.x - TRAP.x, batter.y - TRAP.y);
+  const flightTime = PITCH_BASE_SECONDS + distance * PITCH_SECONDS_PER_METER;
+  const vz = (STRIKE_HEIGHT - TRAP.z + 0.5 * GRAVITY * flightTime ** 2) / flightTime;
+  launchBall(game.ball, TRAP, TRAP.z, (batter.x - TRAP.x) / flightTime, (batter.y - TRAP.y) / flightTime, vz, "pitched");
+  game.pitchArrival = game.time + flightTime; game.phase = PHASE.pitch; beep(220, 0.08, "triangle");
+}
+function windowScale() { return DIFFICULTIES[game.difficulty].windowScale; }
+function resolveSwing(intent, isBunt) {
+  game.swingUsed = true;
+  const error = Math.abs(game.time - game.pitchArrival), scale = windowScale();
+  const quality = HIT_QUALITIES.find(q => error <= q.windowSeconds * scale);
+  if (!quality) return registerStrike();
+  const batter = game.batter, power = isBunt ? BUNT_POWER : quality.power;
+  const angleDeg = isBunt ? BUNT_ANGLE_DEG : intent.my > 0.5 ? LAUNCH_ANGLE_DEG.flat : intent.my < -0.5 ? LAUNCH_ANGLE_DEG.lob : LAUNCH_ANGLE_DEG.medium;
+  const speed = FULL_POWER_HIT_SPEED * power * stat(batter, "swingPower"), angle = degToRad(angleDeg), aim = degToRad(clamp(intent.mx, -1, 1) * MAX_AIM_DEG);
+  launchBall(game.ball, batter, STRIKE_HEIGHT, speed * Math.cos(angle) * Math.sin(aim), speed * Math.cos(angle) * Math.cos(aim), speed * Math.sin(angle), "batted");
+  game.runner = batter; game.phase = PHASE.play; game.playTimer = 0;
+  showFeedback(isBunt ? "Bunt" : quality.name); sounds.hit();
+}
+function updateReady(intent) {
+  moveWithinBounds(game.batter, intent.mx, intent.my, BATTER_SPEED, BATTING_BOX);
+  if (intent.trapPressed) firePitch();
+}
+function updatePitch(intent) {
+  if (!game.swingUsed && intent.aPressed) resolveSwing(intent, false);
+  else if (!game.swingUsed && intent.bPressed) resolveSwing(intent, true);
+  else if (!game.swingUsed && game.time > game.pitchArrival + HIT_QUALITIES[HIT_QUALITIES.length - 1].windowSeconds * windowScale()) { game.swingUsed = true; registerStrike(); }
+}
+
+// ===== Running, fielding, soaking =====
+const runnerIsExposed = () => distance2D(game.runner, HOME) > HOME_SAFE_RADIUS;
+function updateRunner(intent) {
+  const runner = game.runner;
+  moveWithinBounds(runner, intent.mx, intent.my, RUNNER_SPEED * stat(runner, "runSpeed"), CAGE_BOUNDS);
+  if (runnerIsExposed()) game.leftHome = true;
+  if (!game.runnerRunScored && runner.y >= CAGE_LENGTH - PLAYER_RADIUS - 0.05) { game.runnerRunScored = true; addRun(); }
+}
+function holdBall(fielder) {
+  Object.assign(game.ball, { state: "held", holder: fielder, vx: 0, vy: 0, vz: 0 });
+  game.holdTimer = 0; game.lockTimer = 0;
+}
+function releaseBallToward(fielder, target, speed, errorRad, height, state) {
+  launchToward(game.ball, fielder, target, speed, errorRad, height, state);
+  game.ball.pickupBlockedUntil = game.time + 0.4; game.lockTimer = 0; sounds.throwBall();
+}
+function throwAtRunner(fielder, lockQuality) {
+  const speed = THROW_SPEED * lerp(0.6, 1, lockQuality) * stat(fielder, "throwSpeed"), runner = game.runner;
+  const flight = distance2D(fielder, runner) / speed, lead = { x: runner.x + (runner.x - runner.px) / STEP * flight, y: runner.y + (runner.y - runner.py) / STEP * flight };
+  const error = randomNormal() * (1 - lockQuality) * MAX_THROW_ERROR_RAD / stat(fielder, "throwAccuracy");
+  releaseBallToward(fielder, lead, speed, error, RUNNER_CHEST_HEIGHT, "thrown");
+}
+function passToTeammate(fielder, teammate) {
+  const target = teammate || nearestTo(fielder, fieldingTeam().players.filter(f => f !== fielder));
+  releaseBallToward(fielder, target, PASS_SPEED, 0, HOLD_HEIGHT, "thrown");
+}
+function lockQuality() { return clamp(1 - Math.abs(game.lockTimer / LOCK_CYCLE_SECONDS - 1) / LOCK_TOLERANCE, 0, 1); }
+function updateHolderActions(fielder, intent) {
+  game.holdTimer += STEP;
+  if (intent.aPressed) game.lockTimer = 0;
+  if (intent.aHeld) game.lockTimer += STEP;
+  if (intent.aReleased && game.lockTimer > 0) return throwAtRunner(fielder, lockQuality());
+  if (intent.bPressed) return passToTeammate(fielder, intent.passTo);
+  if (game.holdTimer > HOLD_LIMIT_SECONDS + stat(fielder, "holdLimitBonus")) passToTeammate(fielder);
+}
+function updateFielders(intent) {
+  const ball = game.ball, fielders = fieldingTeam().players;
+  game.controlledFielder = ball.state === "held" ? ball.holder : nearestTo(ball, fielders);
+  fielders.forEach((fielder, i) => {
+    fielder.px = fielder.x; fielder.py = fielder.y;
+    if (fielder === game.controlledFielder) moveWithinBounds(fielder, intent.mx, intent.my, ball.holder === fielder ? HOLDER_SPEED : FIELDER_SPEED, CAGE_BOUNDS);
+    else stepToward(fielder, FIELDER_HOME_POSITIONS[i], FIELDER_SPEED);
+  });
+  if (ball.state === "held") updateHolderActions(ball.holder, intent);
+}
+function stepToward(actor, target, speed) {
+  const dx = target.x - actor.x, dy = target.y - actor.y, distance = Math.hypot(dx, dy), stepLength = Math.min(speed * STEP, distance);
+  if (distance > 1e-6) { actor.x += dx / distance * stepLength; actor.y += dy / distance * stepLength; }
+}
+function checkPickups() {
+  const ball = game.ball;
+  if (ball.state === "held" || ball.z >= SOAK_HEIGHT_LIMIT || game.time < ball.pickupBlockedUntil) return;
+  const reach = PLAYER_RADIUS + BALL_RADIUS + PICKUP_EXTRA_REACH;
+  const fielder = fieldingTeam().players.find(f => distance2D(f, ball) < reach);
+  if (fielder) holdBall(fielder);
+}
+function runnerIsSoaked() {
+  if (!runnerIsExposed()) return false;
+  const ball = game.ball, runner = game.runner;
+  const hitByThrow = ball.state === "thrown" && ball.z < SOAK_HEIGHT_LIMIT && distance2D(ball, runner) < PLAYER_RADIUS + BALL_RADIUS;
+  const touchedHolder = ball.state === "held" && distance2D(ball.holder, runner) < 2 * PLAYER_RADIUS;
+  return hitByThrow || touchedHolder;
+}
+function updateBallInPlay(battingIntent, fieldingIntent) {
+  const ball = game.ball, backWallHitsBefore = ball.backWallHits;
+  game.playTimer += STEP;
+  game.runner.px = game.runner.x; game.runner.py = game.runner.y;
+  updateRunner(battingIntent); updateFielders(fieldingIntent);
+  if (ball.state === "held") Object.assign(ball, { x: ball.holder.x, y: ball.holder.y, z: HOLD_HEIGHT });
+  if (ball.backWallHits > backWallHitsBefore && ball.state === "batted" && !game.ballRunScored) { game.ballRunScored = true; addRun(); }
+  if (runnerIsSoaked()) return eliminateBatter("Soaked!");
+  if (game.leftHome && !runnerIsExposed()) { showFeedback("Safe!"); return endPlay(); }
+  if (game.playTimer > PLAY_TIMEOUT) endPlay();
+  checkPickups();
+}
+
+// ===== CPU controllers =====
+function toward(from, to) { const dx = to.x - from.x, dy = to.y - from.y, d = Math.hypot(dx, dy); return d < 0.2 ? { mx: 0, my: 0 } : { mx: dx / d, my: dy / d }; }
+function cpuBattingIntent(team) {
+  const cpu = team.cpu, level = DIFFICULTIES[game.difficulty], intent = blankIntent();
+  if (game.phase === PHASE.ready) {
+    Object.assign(intent, { mx: Math.sign(cpu.targetX - game.batter.x) * (Math.abs(cpu.targetX - game.batter.x) > 0.1 ? 1 : 0) });
+    cpu.trapDelay -= STEP; intent.trapPressed = cpu.trapDelay <= 0;
+  } else if (game.phase === PHASE.pitch) {
+    if (cpu.swingTime === null) cpu.swingTime = game.pitchArrival + randomNormal() * level.timingError;
+    if (game.time >= cpu.swingTime && !game.swingUsed) Object.assign(intent, { aPressed: true, mx: (random() * 2 - 1) * 0.6, my: random() < 0.5 ? 1 : 0 });
+  } else if (game.phase === PHASE.play && game.runner) {
+    const holder = game.ball.holder, danger = holder && distance2D(holder, game.runner) < CPU_DANGER_DISTANCE;
+    const target = !game.runnerRunScored && !danger ? { x: CAGE_WIDTH / 2, y: CAGE_LENGTH } : HOME;
+    Object.assign(intent, toward(game.runner, target));
+  }
+  return intent;
+}
+function cpuFieldingIntent(team) {
+  const cpu = team.cpu, level = DIFFICULTIES[game.difficulty], fielder = game.controlledFielder, ball = game.ball, intent = blankIntent();
+  if (game.phase !== PHASE.play || !fielder) return intent;
+  if (ball.state !== "held") return Object.assign(intent, toward(fielder, ball));
+  if (!runnerIsExposed()) return intent;
+  if (game.holdTimer < level.reaction) return intent;
+  if (distance2D(fielder, game.runner) < THROW_RANGE) {
+    if (!cpu.throwing) { cpu.throwing = true; cpu.lockTarget = Math.max(0.2, LOCK_CYCLE_SECONDS + randomNormal() * level.throwError * 0.5); return { ...intent, aPressed: true, aHeld: true }; }
+    if (game.lockTimer < cpu.lockTarget) return { ...intent, aHeld: true };
+    cpu.throwing = false; return { ...intent, aReleased: true };
+  }
+  const bestPlaced = nearestTo(game.runner, team.players);
+  if (bestPlaced !== fielder) return { ...intent, bPressed: true, passTo: bestPlaced };
+  return Object.assign(intent, toward(fielder, game.runner));
+}
+
+// ===== Simulation step / state machine =====
+function stepSimulation() {
+  game.time += STEP;
+  const ball = game.ball; ball.px = ball.x; ball.py = ball.y; ball.pz = ball.z; game.batter.px = game.batter.x; game.batter.py = game.batter.y;
+  const intents = game.teams.map((team, i) => team.controller === "cpu" ? (i === game.battingIndex ? cpuBattingIntent(team) : cpuFieldingIntent(team)) : readHumanIntent(team.controller));
+  const battingIntent = intents[game.battingIndex], fieldingIntent = intents[1 - game.battingIndex];
+  if (game.phase === PHASE.inningEnded || game.phase === PHASE.matchEnded) return updateOverlayScreens();
+  ball.lastImpact = 0; stepBall(ball, STEP);
+  if (ball.lastImpact > MIN_BOUNCE_IMPACT) sounds.bounce();
+  if (game.phase === PHASE.ready) updateReady(battingIntent);
+  else if (game.phase === PHASE.pitch) updatePitch(battingIntent);
+  else if (game.phase === PHASE.play) updateBallInPlay(battingIntent, fieldingIntent);
+  else if (game.phase === PHASE.playEnded && (game.playEndTimer -= STEP) <= 0) finishPlay();
+}
+function updateOverlayScreens() {
+  if (!isCpuOnly()) return;
+  if ((game.autoAdvanceTimer -= STEP) > 0) return;
+  if (game.phase === PHASE.inningEnded) continueAfterInning(); else startMatch();
+}
+function handleMenuKey(code) {
+  if (game.screen === "title") {
+    if (code.startsWith("Digit") && MODES[+code.slice(5) - 1]) game.modeIndex = +code.slice(5) - 1;
+    if (code === "KeyD") { const names = Object.keys(DIFFICULTIES); game.difficulty = names[(names.indexOf(game.difficulty) + 1) % names.length]; }
+    if (code === "Enter") startMatch();
+  } else if (code === "Enter") {
+    if (game.phase === PHASE.inningEnded) continueAfterInning();
+    else if (game.phase === PHASE.matchEnded) game.screen = "title";
+    else game.paused = !game.paused;
+  }
+  if (code === "Backquote") game.debug = !game.debug;
+}
+
+// ===== Rendering and projection =====
+const canvas = document.getElementById("game"), ctx = canvas.getContext("2d");
+const SCALE_X = 48, SCALE_Y = 14, SCALE_Z = 10, ORIGIN_X = 480, ORIGIN_Y = 590, SHADOW_HEIGHT_FADE = 12;
+const project = (x, y, z) => [ORIGIN_X + (x - CAGE_WIDTH / 2) * SCALE_X, ORIGIN_Y - y * SCALE_Y - z * SCALE_Z];
+function tracePolygon(points) { ctx.beginPath(); points.forEach(([x, y, z], i) => { const [sx, sy] = project(x, y, z); i ? ctx.lineTo(sx, sy) : ctx.moveTo(sx, sy); }); ctx.closePath(); }
+function drawText(text, x, y, size = 18, color = "#fff", align = "left") { ctx.font = `bold ${size}px monospace`; ctx.fillStyle = color; ctx.textAlign = align; ctx.fillText(text, x, y); }
+function drawCircleAt(x, y, z, radiusMeters, fill, stroke) {
+  const [sx, sy] = project(x, y, z); ctx.beginPath(); ctx.ellipse(sx, sy, radiusMeters * SCALE_X, radiusMeters * SCALE_X * 0.8, 0, 0, 7);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); } if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke(); }
+}
+function drawCage() {
+  tracePolygon([[0, 0, 0], [CAGE_WIDTH, 0, 0], [CAGE_WIDTH, CAGE_LENGTH, 0], [0, CAGE_LENGTH, 0]]); ctx.fillStyle = "#3a5a34"; ctx.fill();
+  tracePolygon([[0, CAGE_LENGTH, 0], [CAGE_WIDTH, CAGE_LENGTH, 0], [CAGE_WIDTH, CAGE_LENGTH, CEILING_HEIGHT], [0, CAGE_LENGTH, CEILING_HEIGHT]]); ctx.fillStyle = "#2a3a3a"; ctx.fill();
+  ctx.strokeStyle = "#9ab"; ctx.lineWidth = 2;
+  tracePolygon([[0, 0, CEILING_HEIGHT], [CAGE_WIDTH, 0, CEILING_HEIGHT], [CAGE_WIDTH, CAGE_LENGTH, CEILING_HEIGHT], [0, CAGE_LENGTH, CEILING_HEIGHT]]); ctx.stroke();
+  [[0, 0], [CAGE_WIDTH, 0], [CAGE_WIDTH, CAGE_LENGTH], [0, CAGE_LENGTH]].forEach(([x, y]) => { ctx.beginPath(); ctx.moveTo(...project(x, y, 0)); ctx.lineTo(...project(x, y, CEILING_HEIGHT)); ctx.stroke(); });
+  tracePolygon([[BATTING_BOX.minX, BATTING_BOX.minY, 0], [BATTING_BOX.maxX, BATTING_BOX.minY, 0], [BATTING_BOX.maxX, BATTING_BOX.maxY, 0], [BATTING_BOX.minX, BATTING_BOX.maxY, 0]]); ctx.strokeStyle = "#fff8"; ctx.stroke();
+  drawCircleAt(HOME.x, HOME.y, 0, HOME_SAFE_RADIUS, null, "#fff6"); drawCircleAt(HOME.x, HOME.y, 0, 0.35, "#fff");
+  drawCircleAt(TRAP.x, TRAP.y, 0, 0.5, "#555", "#ccc");
+}
+const interpolated = (e, key, alpha) => lerp(e["p" + key], e[key], alpha);
+function drawActor(actor, alpha, highlighted) {
+  const x = interpolated(actor, "x", alpha), y = interpolated(actor, "y", alpha);
+  drawCircleAt(x, y, 0, PLAYER_RADIUS, "#0006"); drawCircleAt(x, y, 0.9, PLAYER_RADIUS, actor.color, highlighted ? "#fff" : "#000");
+}
+function drawBall(alpha) {
+  const ball = game.ball, x = interpolated(ball, "x", alpha), y = interpolated(ball, "y", alpha), z = interpolated(ball, "z", alpha);
+  drawCircleAt(x, y, 0, BALL_RADIUS * clamp(1 - z / SHADOW_HEIGHT_FADE, 0.4, 1), "#0008"); drawCircleAt(x, y, z, BALL_RADIUS * 1.3, "#ffe066", "#000");
+}
+function drawLockRing(alpha) {
+  const holder = game.ball.holder, controlled = game.controlledFielder;
+  if (game.phase !== PHASE.play || game.ball.state !== "held" || controlled !== holder || !game.lockTimer || !runnerIsExposed()) return;
+  const [sx, sy] = project(game.runner.x, game.runner.y, 0.9), progress = clamp(game.lockTimer / LOCK_CYCLE_SECONDS, 0, 1.3);
+  ctx.beginPath(); ctx.arc(sx, sy, lerp(LOCK_RING_MAX_PX, LOCK_RING_MIN_PX, Math.min(progress, 1)), 0, 7);
+  ctx.strokeStyle = lockQuality() > 0.8 ? "#3f3" : "#f93"; ctx.lineWidth = 3; ctx.stroke();
+}
+function drawHud() {
+  const [red, blue] = game.teams, bat = battingTeam();
+  drawText(`${red.name} ${red.score}  -  ${blue.score} ${blue.name}`, 480, 28, 22, "#fff", "center");
+  drawText(`Inning ${Math.floor(game.halfIndex / 2) + 1}  |  ${bat.name} batting  |  Runs this inning: ${game.halfRuns}`, 480, 50, 14, "#ccc", "center");
+  drawText(`Strikes: ${game.batter.strikes}/${STRIKES_TO_ELIMINATE}   Batters left: ${game.order.filter(b => b.alive).length}`, 16, 28, 16);
+  game.order.forEach((batter, i) => { drawCircleAt(0.6 + i * 0.6, 31, 0, 0.22, batter.color, i === 0 ? "#fff" : null); });
+  if (game.time < game.feedback.until) drawText(game.feedback.text, 480, 240, 40, "#ffe066", "center");
+  if (game.ball.state === "held" && game.holdTimer > HOLD_LIMIT_SECONDS - HOLD_WARNING_SECONDS && Math.floor(game.time * 8) % 2) drawText("PASS!", 480, 300, 30, "#f55", "center");
+  if (game.phase === PHASE.ready) drawText("Move in box, C = trap, Z = swing, X = bunt", 480, 620, 14, "#ccc", "center");
+}
+function drawDebugOverlay() {
+  ctx.fillStyle = "#000c"; ctx.fillRect(10, 70, 640, 100);
+  TUNING_REPORT.forEach((line, i) => drawText(line, 18, 92 + i * 20, 14, "#8f8"));
+}
+function drawOverlayScreen(lines) {
+  ctx.fillStyle = "#000b"; ctx.fillRect(0, 0, 960, 640);
+  lines.forEach(([text, size], i) => drawText(text, 480, 220 + i * 46, size, "#fff", "center"));
+}
+function render(alpha) {
+  ctx.clearRect(0, 0, 960, 640);
+  if (game.screen === "title") {
+    return drawOverlayScreen([["CAGE PALANT", 56], ...MODES.map((m, i) => [`${i + 1}: ${m.name}${i === game.modeIndex ? "  <" : ""}`, 22]), [`D: difficulty = ${game.difficulty}`, 20], ["Arrows/Z/X/C  |  P2: WASD/F/G/H  |  Enter: start/pause  |  `: debug", 14], ["Batting: C trap, Z swing, X bunt. Fielding: hold Z to lock, release at tightest ring; X passes", 14]]);
+  }
+  drawCage();
+  const drawables = [...fieldingTeam().players.map(f => ({ y: f.y, draw: () => drawActor(f, alpha, f === game.controlledFielder) })), { y: game.batter.y, draw: () => drawActor(game.batter, alpha, true) }];
+  drawables.sort((a, b) => b.y - a.y).forEach(d => d.draw());
+  drawBall(alpha); drawLockRing(alpha); drawHud();
+  if (game.debug) drawDebugOverlay();
+  if (game.paused) drawOverlayScreen([["PAUSED", 48], ["Enter to resume", 20]]);
+  if (game.phase === PHASE.inningEnded) drawOverlayScreen([["INNING OVER", 44], [`${game.teams[(game.halfIndex - 1) % 2].name} scored ${game.halfRuns}`, 26], [`${game.teams[0].name} ${game.teams[0].score} - ${game.teams[1].score} ${game.teams[1].name}`, 26], ["Enter to continue", 18]]);
+  if (game.phase === PHASE.matchEnded) {
+    const [a, b] = game.teams, winner = a.score > b.score ? a : b;
+    drawOverlayScreen([["MATCH OVER", 48], [`${winner.name} win ${Math.max(a.score, b.score)} - ${Math.min(a.score, b.score)}`, 30], ["Enter for title", 18]]);
+  }
+}
+
+// ===== Main loop (fixed timestep, interpolated rendering) =====
+let lastTimestamp = 0, accumulator = 0;
+const MAX_FRAME_SECONDS = 0.25;
+function frame(timestamp) {
+  const frameSeconds = Math.min((timestamp - lastTimestamp) / 1000, MAX_FRAME_SECONDS);
+  lastTimestamp = timestamp; pollGamepadStart();
+  if (game.screen === "playing" && !game.paused) {
+    accumulator += frameSeconds;
+    while (accumulator >= STEP) { stepSimulation(); accumulator -= STEP; }
+  }
+  render(accumulator / STEP);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script></body></html>
