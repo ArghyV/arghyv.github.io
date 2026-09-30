@@ -21,6 +21,7 @@
 const CANVAS_W = 960, CANVAS_H = 640;
 const FIXED_DT = 1 / 60;                 // fixed 60 Hz simulation step
 const MAX_FRAME_SECONDS = 0.25;          // clamp huge frames (tab switches)
+const SWING_ANIM_SECONDS = 0.18;
 
 const CAGE_WIDTH = 14;
 const CAGE_LENGTH = 32;
@@ -28,9 +29,9 @@ const CAGE_HALF_WIDTH = CAGE_WIDTH / 2;
 const CEILING_HEIGHT_STARTING = 10;
 
 const HOME_PLATE = { x: 0, y: 2.0 };
-// The box is kept just outside HOME_SAFE_RADIUS so a batter can never start a
-// run already standing on the safe zone (that would make a bunt a zero-risk
-// infinite survive loop).
+// The box sits just outside HOME_SAFE_RADIUS so a batter can never start a
+// run already standing on the safe zone (that would make a bunt a zero-risk,
+// infinitely repeatable survive loop and the inning could never end).
 const BATTING_BOX = { xMin: -1.5, xMax: 1.5, yMin: 3.7, yMax: 5.7 };
 const TRAP_POS = { x: 0, y: 0.9 };
 
@@ -62,7 +63,7 @@ const PITCH_ARRIVAL_BASE_SECONDS = 0.55; // closer batter -> steeper arc and qui
 const PITCH_ARRIVAL_PER_METER = 0.16;
 const STRIKE_CALLED_DELAY = 0.35;        // grace after arrival before a no-contact strike
 const CONTACT_PROXIMITY = 1.3;           // batter must stay this close to the pitch line to connect
-const BUNT_REACH = 2.5;                  // a bunt connects on timing "any" but the ball must be reachable
+const BUNT_REACH = 2.5;                  // bunt timing is "any" but the ball must be reachable
 const BUNT_MAX_HEIGHT = 2.6;
 const BUNT_PAST_GRACE = 0.25;            // no bunting a ball that has already passed
 
@@ -88,7 +89,7 @@ const PLAY_END_SECONDS = 2.2;
 const INNING_SUMMARY_SECONDS = 3.2;
 const ATTRACT_IDLE_SECONDS = 15;
 
-const FIELDER_ANCHORS = [ {x: -4.6, y: 18}, {x: 4.6, y: 18}, {x: -2.2, y: 25}, {x: 2.2, y: 25} ];
+const FIELDER_ANCHORS = [ { x: -4.6, y: 18 }, { x: 4.6, y: 18 }, { x: -2.2, y: 25 }, { x: 2.2, y: 25 } ];
 const SWITCH_HYSTERESIS = 1.2;           // anti-flicker for auto-switching the controlled fielder
 const UNPICKED_STALL_SECONDS = 6;        // if a human fielder ignores a live ball this long, an AI fetches it
 const WALL_TOUCH_EPS = 0.06;
@@ -175,7 +176,7 @@ function makeRng(seed) {
 }
 const urlSeed = new URLSearchParams(location.search).get('seed');
 const rng = makeRng(urlSeed ? (parseInt(urlSeed, 10) >>> 0) : (Date.now() & 0xffffffff));
-function randn() { // gaussian via Box-Muller — used for CPU swing/throw error
+function randn() { // gaussian via Box-Muller — CPU swing/throw error
   let u = 0, v = 0;
   while (u === 0) u = rng();
   while (v === 0) v = rng();
@@ -234,7 +235,7 @@ const Sound = (() => {
 })();
 
 /* ============================================================
-   5. BALL PHYSICS (fixed-step, states: pitched/batted/loose/held/thrown/dead)
+   5. BALL PHYSICS (states: pitched | batted | loose | held | thrown | dead)
    ============================================================ */
 const ball = {
   x: TRAP_POS.x, y: TRAP_POS.y, z: TRAP_RELEASE_HEIGHT,
@@ -243,7 +244,7 @@ const ball = {
   state: 'dead',
   holder: null,
   holdSeconds: 0,
-  battedRunScored: false,
+  battedRunScored: false,   // the back-wall ball run scores once per hit
   thrower: null, thrownAt: 0, intendedReceiver: null, passTarget: null,
   unpickedSince: 0,
   trail: [],
@@ -253,7 +254,7 @@ function syncBallPrev() { ball.prevX = ball.x; ball.prevY = ball.y; ball.prevZ =
 
 function onBallSurface(kind) {
   if (ball.state === 'thrown') {
-    ball.state = 'loose';
+    ball.state = 'loose';    // a thrown ball turns harmless on its first surface contact
     ball.intendedReceiver = null; ball.passTarget = null;
     ball.unpickedSince = simTime;
   }
@@ -426,8 +427,8 @@ function startHalfInning() {
   match.eliminated = new Array(PLAYERS_PER_TEAM).fill(false);
   match.queue = Array.from({ length: PLAYERS_PER_TEAM }, (_, i) => i);
   const extra = match.inningNumber > INNINGS_PER_TEAM;
-  pushMessage(extra ? `EXTRA INNING ${match.inningNumber}` : `INNING ${match.inningNumber}`,
-    batting.color, 2.6, `${batting.name} batting — knock out all four to take the field`);
+  pushMessage(extra ? 'EXTRA INNING ' + match.inningNumber : 'INNING ' + match.inningNumber,
+    batting.color, 2.6, batting.name + ' batting — knock out all four to take the field');
   Sound.inning();
   setupNextPlay();
 }
@@ -557,9 +558,9 @@ function callStrike() {
   Sound.strike();
   if (match.strikes[idx] >= 3) {
     match.eliminated[idx] = true;
-    endPlay('strikeout', `STRIKE THREE — BATTER ${idx + 1} IS OUT`, TEAM_COLORS[match.fieldingTeam]);
+    endPlay('strikeout', 'STRIKE THREE — BATTER ' + (idx + 1) + ' IS OUT', TEAM_COLORS[match.fieldingTeam]);
   } else {
-    endPlay('strike', `STRIKE ${match.strikes[idx]}`, '#c9ccd1');
+    endPlay('strike', 'STRIKE ' + match.strikes[idx], '#c9ccd1');
   }
 }
 
@@ -594,7 +595,7 @@ function proceedAfterInning() {
     startHalfInning();
     return;
   }
-  const [t0, t1] = match.teams;
+  const t0 = match.teams[0], t1 = match.teams[1];
   const played = t0.innings.length;   // after a full inning both teams have equal counts
   const decided = t0.totalRuns !== t1.totalRuns;
   if (played >= INNINGS_PER_TEAM && (decided || played >= INNINGS_PER_TEAM + MAX_EXTRA_INNINGS)) {
@@ -647,7 +648,7 @@ function updatePitchInFlight(intents, dt) {
   match.lastBatIntent = bat;
   moveBatterInBox(bat.moveX, bat.moveY, dt);
   const pitch = match.pitch;
-  if (bat.aPressed && !pitch.swung) trySwing(bat);
+  if (match.state === STATE.PITCH_IN_FLIGHT && bat.aPressed && !pitch.swung) trySwing(bat);
   if (match.state === STATE.PITCH_IN_FLIGHT && bat.bPressed && !pitch.bunted) tryBunt(bat);
   if (match.state === STATE.PITCH_IN_FLIGHT && !pitch.resolved
       && simTime >= pitch.arrivalTime + STRIKE_CALLED_DELAY) {
@@ -678,7 +679,7 @@ function updateBallInPlay(intents, dt) {
   if (match.state !== STATE.BALL_IN_PLAY) return;
 
   // runner events first: crossing home ends the play instantly, so a throw
-  // that lands the same tick arrives "too late" (rule: safe beats the ball)
+  // that lands the same tick arrives too late (safe beats a ball in the air)
   checkRunnerEvents();
   if (match.state !== STATE.BALL_IN_PLAY) return;
 
@@ -893,14 +894,14 @@ function trySoakByThrownBall() {
   if (playerDist(runner, ball) < PLAYER_RADIUS + BALL_RADIUS + 0.06) {
     ball.state = 'loose'; ball.vx *= 0.25; ball.vy *= 0.25; ball.vz = Math.min(ball.vz, 0);
     ball.unpickedSince = simTime;
-    eliminateRunner(`SOAKED! — BATTER ${match.currentBatterIndex + 1} IS OUT`);
+    eliminateRunner('SOAKED! — BATTER ' + (match.currentBatterIndex + 1) + ' IS OUT');
   }
 }
 
 function checkTagOut() {
   const runner = match.runner; if (!runner) return;
   if (playerDist(runner, ball.holder) < PLAYER_RADIUS * 2) {
-    eliminateRunner(`TAGGED OUT — BATTER ${match.currentBatterIndex + 1} IS OUT`);
+    eliminateRunner('TAGGED OUT — BATTER ' + (match.currentBatterIndex + 1) + ' IS OUT');
   }
 }
 
@@ -964,13 +965,13 @@ function toIntent(raw, prev) {
   };
 }
 
-let anyKeyEdge = false;
+let menuRow = 0, menuMode = 0, menuDiff = 1, titleIdleTime = 0;
+
 window.addEventListener('keydown', e => {
   if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) e.preventDefault();
   Sound.ensure();
   keys.add(e.code);
   if (e.repeat) return;
-  anyKeyEdge = true;
   if (match.attract) { gotoTitle(); return; }
   if (e.code === 'Backquote') debugOverlay = !debugOverlay;
   if (e.code === 'KeyM') pushMessage(Sound.toggleMute() ? 'MUTED' : 'SOUND ON', '#c9ccd1', 0.8);
@@ -985,7 +986,6 @@ window.addEventListener('blur', () => {
   if ([STATE.READY_TO_PITCH, STATE.PITCH_IN_FLIGHT, STATE.BALL_IN_PLAY].includes(match.state)) paused = true;
 });
 
-let menuRow = 0, menuMode = 0, menuDiff = 1, titleIdleTime = 0;
 function handleTitleKey(code) {
   titleIdleTime = 0;
   if (code === 'ArrowUp' || code === 'ArrowDown') { menuRow = 1 - menuRow; Sound.menuMove(); }
@@ -1008,7 +1008,7 @@ const CPU_IDLE_INTENT = { moveX: 0, moveY: 0, aDown: false, aPressed: false, aRe
 
 function collectIntents() {
   const pad0 = gamepadRaw(0), pad1 = gamepadRaw(1);
-  if (match.attract && (padActivity(pad0) || padActivity(pad1))) { gotoTitle(); }
+  if (match.attract && (padActivity(pad0) || padActivity(pad1))) gotoTitle();
   const rawP1 = mergeRaw(keyboardRaw(KEYMAP_P1), pad0);
   const rawP2 = mergeRaw(keyboardRaw(KEYMAP_P2), pad1);
   const p1 = toIntent(rawP1, prevRaw.p1); prevRaw.p1 = rawP1;
@@ -1088,7 +1088,7 @@ function planCpuSwing() {
 
 function cpuRunnerIntent() {
   const runner = match.runner;
-  if (!runner) return CPU_IDLE_INTENT;
+  if (!runner || !match.playContext) return CPU_IDLE_INTENT;
   const holder = ball.state === 'held' ? ball.holder : null;
   let goalX, goalY;
   if (holder && playerDist(holder, runner) < CPU_DANGER_RADIUS) {
@@ -1129,7 +1129,7 @@ function cpuRunnerIntent() {
 }
 
 /* ============================================================
-   10. MAIN UPDATE (fixed timestep) + snapshot for interpolated rendering
+   10. MAIN UPDATE (fixed timestep)
    ============================================================ */
 let simTime = 0, paused = false, debugOverlay = false, pauseSuppressUntil = 0;
 
@@ -1172,7 +1172,6 @@ function update(dt) {
       break;
   }
   match.advanceRequested = false;
-  anyKeyEdge = false;
   pruneEffects();
 }
 
@@ -1181,7 +1180,596 @@ function update(dt) {
    ============================================================ */
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
+let renderClock = 0;
 
 const VIEW = { originX: 480, originY: 600, perX: 45, shearY: -4, perY: 13, perZ: 16 };
 function project(x, y, z) {
-  return { x: VIEW.originX + VIEW.perX * x + VIEW.shearY * y, y: VIEW.originY - VIEW.perY
+  return { x: VIEW.originX + VIEW.perX * x + VIEW.shearY * y,
+           y: VIEW.originY - VIEW.perY * y - VIEW.perZ * z };
+}
+
+const MONO_FONT = 'ui-monospace, Consolas, "Courier New", monospace';
+const SANS_FONT = '"Segoe UI", "Helvetica Neue", "Trebuchet MS", sans-serif';
+const COLORS = {
+  bg: '#0f1216', floor: '#212730', floorLine: 'rgba(255,255,255,0.055)',
+  backWall: '#2a323d', sideWallFill: 'rgba(255,255,255,0.028)',
+  wire: 'rgba(255,255,255,0.10)', edge: 'rgba(255,255,255,0.28)',
+  ball: '#f2efe6', text: '#d6dbe1', dim: '#8a929c',
+};
+
+function line(a, b, style, lw = 1) {
+  ctx.strokeStyle = style; ctx.lineWidth = lw;
+  ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+}
+function pathQuad(pts) {
+  ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+  for (let i = 1; i < 4; i++) ctx.lineTo(pts[i].x, pts[i].y);
+  ctx.closePath();
+}
+function quadFill(pts, fill) { pathQuad(pts); ctx.fillStyle = fill; ctx.fill(); }
+function quadStroke(pts, style, lw = 1) { pathQuad(pts); ctx.strokeStyle = style; ctx.lineWidth = lw; ctx.stroke(); }
+function circle(x, y, r, fill, stroke, lw = 1) {
+  ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+function ell(x, y, rx, ry, fill, stroke, lw = 1) {
+  ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, Math.PI * 2);
+  if (fill) { ctx.fillStyle = fill; ctx.fill(); }
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw; ctx.stroke(); }
+}
+function panel(x, y, w, h) {
+  const r = 8;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(13,16,20,0.82)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1; ctx.stroke();
+}
+function chip(color, x, y) { ctx.fillStyle = color; ctx.fillRect(x, y, 9, 9); }
+function text(str, x, y, opts = {}) {
+  const size = opts.size || 12, weight = opts.weight || 600;
+  ctx.font = weight + ' ' + size + 'px ' + (opts.mono === false ? SANS_FONT : MONO_FONT);
+  ctx.textAlign = opts.align || 'left';
+  ctx.textBaseline = 'alphabetic';
+  ctx.globalAlpha = opts.alpha === undefined ? 1 : opts.alpha;
+  ctx.fillStyle = opts.color || COLORS.text;
+  ctx.fillText(str, x, y);
+  ctx.globalAlpha = 1;
+}
+
+function drawCage() {
+  const fL = project(-CAGE_HALF_WIDTH, 0, 0);
+  const fR = project(CAGE_HALF_WIDTH, 0, 0);
+  const bL = project(-CAGE_HALF_WIDTH, CAGE_LENGTH, 0);
+  const bR = project(CAGE_HALF_WIDTH, CAGE_LENGTH, 0);
+  const tL = project(-CAGE_HALF_WIDTH, CAGE_LENGTH, CEILING_HEIGHT);
+  const tR = project(CAGE_HALF_WIDTH, CAGE_LENGTH, CEILING_HEIGHT);
+
+  quadFill([fL, fR, bR, bL], COLORS.floor);
+  for (let y = 4; y < CAGE_LENGTH; y += 4) {
+    line(project(-CAGE_HALF_WIDTH, y, 0), project(CAGE_HALF_WIDTH, y, 0), COLORS.floorLine);
+  }
+  for (let x = -CAGE_HALF_WIDTH + 3.5; x < CAGE_HALF_WIDTH; x += 3.5) {
+    line(project(x, 0, 0), project(x, CAGE_LENGTH, 0), COLORS.floorLine);
+  }
+  quadStroke([fL, fR, bR, bL], COLORS.edge, 1.5);
+
+  // back wall — the scoring target
+  quadFill([bL, bR, tR, tL], COLORS.backWall);
+  for (let z = 2; z < CEILING_HEIGHT; z += 2) {
+    line(project(-CAGE_HALF_WIDTH, CAGE_LENGTH, z), project(CAGE_HALF_WIDTH, CAGE_LENGTH, z), 'rgba(255,255,255,0.045)');
+  }
+  quadFill([bL, bR, project(CAGE_HALF_WIDTH, CAGE_LENGTH, 0.9), project(-CAGE_HALF_WIDTH, CAGE_LENGTH, 0.9)],
+    'rgba(255,255,255,0.07)');
+  if (simTime < match.wallFlashUntil) {
+    ctx.globalAlpha = clamp((match.wallFlashUntil - simTime) / 0.7, 0, 1) * 0.16;
+    quadFill([bL, bR, tR, tL], '#ffd24a');
+    ctx.globalAlpha = 1;
+  }
+  // right wall face, seen at a glancing angle (the camera sits slightly right)
+  quadFill([fR, project(CAGE_HALF_WIDTH, 0, CEILING_HEIGHT), tR, bR], COLORS.sideWallFill);
+  for (let y = 0; y <= CAGE_LENGTH; y += 8) {
+    line(project(CAGE_HALF_WIDTH, y, 0), project(CAGE_HALF_WIDTH, y, CEILING_HEIGHT), COLORS.wire);
+  }
+  for (let z = 0; z < CEILING_HEIGHT; z += CEILING_HEIGHT / 4) {
+    line(project(CAGE_HALF_WIDTH, 0, z), project(CAGE_HALF_WIDTH, CAGE_LENGTH, z), COLORS.wire);
+  }
+  line(fR, tR, COLORS.edge, 1.5);
+  // left wall is edge-on from this camera: floor edge line + ceiling rail
+  line(fL, bL, COLORS.edge, 1.5);
+  line(project(-CAGE_HALF_WIDTH, 0, CEILING_HEIGHT), tL, 'rgba(255,255,255,0.13)');
+  line(fL, fR, 'rgba(255,255,255,0.20)');
+  line(project(-CAGE_HALF_WIDTH, 0, CEILING_HEIGHT), project(CAGE_HALF_WIDTH, 0, CEILING_HEIGHT), 'rgba(255,255,255,0.10)');
+  for (let y = 8; y < CAGE_LENGTH; y += 8) {
+    line(project(-CAGE_HALF_WIDTH, y, CEILING_HEIGHT), project(CAGE_HALF_WIDTH, y, CEILING_HEIGHT), 'rgba(255,255,255,0.05)');
+  }
+  drawMarkings();
+}
+
+function drawMarkings() {
+  quadStroke([
+    project(BATTING_BOX.xMin, BATTING_BOX.yMin, 0), project(BATTING_BOX.xMax, BATTING_BOX.yMin, 0),
+    project(BATTING_BOX.xMax, BATTING_BOX.yMax, 0), project(BATTING_BOX.xMin, BATTING_BOX.yMax, 0),
+  ], 'rgba(255,255,255,0.5)', 1.5);
+
+  // home plate diamond
+  ctx.beginPath();
+  const platePts = [[0, -0.45], [0.35, 0], [0, 0.45], [-0.35, 0]];
+  platePts.forEach((o, i) => {
+    const p = project(HOME_PLATE.x + o[0], HOME_PLATE.y + o[1], 0);
+    if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+  });
+  ctx.closePath();
+  ctx.fillStyle = '#e8ebef'; ctx.fill();
+
+  // safe zone
+  ctx.beginPath();
+  for (let i = 0; i <= 28; i++) {
+    const a = i / 28 * Math.PI * 2;
+    const p = project(HOME_PLATE.x + Math.cos(a) * HOME_SAFE_RADIUS, HOME_PLATE.y + Math.sin(a) * HOME_SAFE_RADIUS, 0);
+    if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y);
+  }
+  ctx.setLineDash([5, 6]);
+  ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.setLineDash([]);
+
+  // trap (pulses when it is live)
+  const trapQuad = [
+    project(TRAP_POS.x - 0.6, TRAP_POS.y - 0.3, 0), project(TRAP_POS.x + 0.6, TRAP_POS.y - 0.3, 0),
+    project(TRAP_POS.x + 0.6, TRAP_POS.y + 0.3, 0), project(TRAP_POS.x - 0.6, TRAP_POS.y + 0.3, 0),
+  ];
+  quadFill(trapQuad, '#3a4450');
+  const pulse = match.state === STATE.READY_TO_PITCH ? 0.5 + 0.5 * Math.sin(renderClock * 6) : 0;
+  quadStroke(trapQuad, 'rgba(255,255,255,' + (0.3 + 0.5 * pulse).toFixed(2) + ')', 1.5 + pulse * 1.5);
+}
+
+function activePlayers() {
+  const list = [];
+  for (const f of match.teams[match.fieldingTeam].players) if (f.role === 'fielder') list.push(f);
+  if (match.batter && (match.batter.role === 'batter' || match.batter.role === 'runner')) list.push(match.batter);
+  return list;
+}
+
+function drawShadowsAndTrail(alpha) {
+  for (let i = 0; i < ball.trail.length; i++) {
+    const t = ball.trail[i];
+    const p = project(t.x, t.y, t.z);
+    circle(p.x, p.y, 2.5, 'rgba(242,239,230,' + ((i + 1) / ball.trail.length * 0.22).toFixed(3) + ')');
+  }
+  const bx = lerp(ball.prevX, ball.x, alpha), by = lerp(ball.prevY, ball.y, alpha);
+  const bz = lerp(ball.prevZ, ball.z, alpha);
+  const bs = project(bx, by, 0);
+  const shrink = clamp(1 - bz / 13, 0.3, 1);   // shadow shrinks and fades with height
+  ell(bs.x, bs.y, 6 * shrink + 1.5, 2.4 * shrink + 0.8, 'rgba(0,0,0,' + (0.35 * shrink).toFixed(3) + ')');
+  for (const p of activePlayers()) {
+    const g = project(lerp(p.prevX, p.x, alpha), lerp(p.prevY, p.y, alpha), 0);
+    ell(g.x, g.y, 19, 5.5, 'rgba(0,0,0,0.28)');
+  }
+}
+
+function drawEntities(alpha) {
+  const items = [];
+  for (const p of activePlayers()) {
+    const py = lerp(p.prevY, p.y, alpha);
+    items.push({ kind: 'player', p, x: lerp(p.prevX, p.x, alpha), y: py, depth: py });
+  }
+  items.push({ kind: 'ball', depth: lerp(ball.prevY, ball.y, alpha) });
+  items.sort((a, b) => b.depth - a.depth);   // painter's algorithm: far (high y) first
+  for (const it of items) {
+    if (it.kind === 'player') drawPlayer(it.p, it.x, it.y);
+    else drawBall(lerp(ball.prevX, ball.x, alpha), lerp(ball.prevY, ball.y, alpha), lerp(ball.prevZ, ball.z, alpha));
+  }
+}
+
+function drawPlayer(p, x, y) {
+  const team = match.teams[p.team];
+  const ground = project(x, y, 0);
+  const body = project(x, y, 1.4);
+  if (p === match.controlledFielder) {
+    ell(ground.x, ground.y, 23, 8, null, 'rgba(255,255,255,0.8)', 2);
+    ctx.fillStyle = 'rgba(255,255,255,0.9)';
+    ctx.beginPath();
+    ctx.moveTo(body.x - 5, body.y - 22); ctx.lineTo(body.x + 5, body.y - 22); ctx.lineTo(body.x, body.y - 30);
+    ctx.closePath(); ctx.fill();
+  }
+  if (p === match.runner) {
+    const pulse = 1 + 0.12 * Math.sin(renderClock * 7);
+    ell(ground.x, ground.y, 24 * pulse, 8.5 * pulse, null, team.color, 2.5);
+  }
+  circle(body.x, body.y, 15, team.color, 'rgba(0,0,0,0.6)', 2);
+  text(String(p.id + 1), body.x, body.y + 4, { size: 11, weight: 800, color: 'rgba(0,0,0,0.8)', align: 'center' });
+  if (ball.holder === p) {
+    const limit = stat(p, 'holdLimitSeconds') + (p.stats.holdLimitBonus || 0);
+    const frac = clamp(1 - ball.holdSeconds / limit, 0, 1);
+    const danger = frac < 0.3;
+    const flash = danger && Math.sin(renderClock * 18) > 0;
+    ctx.beginPath();
+    ctx.arc(body.x, body.y, 21, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2);
+    ctx.strokeStyle = flash ? '#e05252' : danger ? 'rgba(224,82,82,0.8)' : 'rgba(255,255,255,0.45)';
+    ctx.lineWidth = 2.5; ctx.stroke();
+  }
+}
+
+function drawBall(x, y, z) {
+  const p = project(x, y, z);
+  circle(p.x, p.y, 6.5, COLORS.ball, 'rgba(0,0,0,0.55)', 1.5);
+  ctx.strokeStyle = 'rgba(0,0,0,0.25)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(p.x, p.y, 4, -1.0, 0.8); ctx.stroke();
+}
+
+function drawOverlays(alpha) {
+  // contact rings
+  for (const r of fxRings) {
+    const t = (simTime - r.bornAt) / 0.35;
+    const p = project(r.x, r.y, r.z);
+    circle(p.x, p.y, 8 + t * 30, null, 'rgba(255,255,255,' + ((1 - t) * 0.8).toFixed(2) + ')', 2);
+  }
+  // bat
+  const b = match.batter;
+  if (b && b.role === 'batter') {
+    const bp = project(lerp(b.prevX, b.x, alpha), lerp(b.prevY, b.y, alpha), 1.3);
+    const t = (simTime - b.swingStartedAt) / SWING_ANIM_SECONDS;
+    const ang = (t >= 0 && t < 1) ? lerp(-2.5, -0.15, easeOut(t)) : -0.7;
+    ctx.lineCap = 'round';
+    if (t >= 0 && t < 1) {
+      ctx.strokeStyle = 'rgba(217,176,107,0.3)'; ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(bp.x + Math.cos(ang - 0.5) * 10, bp.y + Math.sin(ang - 0.5) * 10);
+      ctx.lineTo(bp.x + Math.cos(ang - 0.5) * 26, bp.y + Math.sin(ang - 0.5) * 26);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = '#d9b06b'; ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(bp.x + Math.cos(ang) * 9, bp.y + Math.sin(ang) * 9);
+    ctx.lineTo(bp.x + Math.cos(ang) * 26, bp.y + Math.sin(ang) * 26);
+    ctx.stroke();
+    ctx.lineCap = 'butt';
+  }
+  // pitch timing ring — closes exactly as the ball reaches the strike point
+  if (match.state === STATE.PITCH_IN_FLIGHT && match.pitch) {
+    const p = match.pitch;
+    const cp = project(p.contactX, p.contactY, STRIKE_HEIGHT);
+    const fireAt = p.arrivalTime - p.flightSeconds;
+    if (renderClock < p.arrivalTime) {
+      const t = clamp((renderClock - fireAt) / p.flightSeconds, 0, 1);
+      circle(cp.x, cp.y, lerp(46, 12, t), null, 'rgba(255,255,255,0.85)', 2.5);
+      circle(cp.x, cp.y, 2.5, 'rgba(255,255,255,0.5)');
+    } else if (renderClock < p.arrivalTime + 0.25) {
+      const t = (renderClock - p.arrivalTime) / 0.25;
+      circle(cp.x, cp.y, 12 + t * 22, null, 'rgba(255,210,74,' + ((1 - t) * 0.8).toFixed(2) + ')', 2.5);
+    }
+  }
+  // aim indicator for a human batter
+  if ((match.state === STATE.READY_TO_PITCH || match.state === STATE.PITCH_IN_FLIGHT)
+      && !isCpu(match.battingTeam) && match.batter && match.lastBatIntent) {
+    const intent = match.lastBatIntent;
+    const mx = clamp(intent.moveX, -1, 1), my = clamp(intent.moveY, -1, 1);
+    const aim = mx * AIM_MAX_ANGLE * DEG;
+    const elevDeg = my > 0.5 ? HIT_ELEVATIONS.flat : my < -0.5 ? HIT_ELEVATIONS.lob : HIT_ELEVATIONS.medium;
+    const elevName = my > 0.5 ? 'FLAT' : my < -0.5 ? 'LOB' : 'ARC';
+    const bx = lerp(match.batter.prevX, match.batter.x, alpha);
+    const by = lerp(match.batter.prevY, match.batter.y, alpha);
+    const from = project(bx, by, 0);
+    const to = project(bx + Math.sin(aim) * 4.6, by + Math.cos(aim) * 4.6, 0);
+    ctx.setLineDash([6, 5]);
+    line(from, to, 'rgba(229,136,50,0.55)', 2);
+    ctx.setLineDash([]);
+    text(elevName + ' ' + elevDeg + '\u00B0', to.x, to.y + 14,
+      { size: 10, weight: 800, color: 'rgba(229,136,50,0.85)', align: 'center' });
+  }
+  // throw lock-on ring
+  if (match.throwLock && match.throwLock.target && match.throwLock.thrower) {
+    const t = match.throwLock.target;
+    const tp = project(t.x, t.y, 1.4);
+    const phase = triangleWave((renderClock - match.throwLock.startTime) / THROW_LOCK_PERIOD);
+    const tpColor = match.teams[match.fieldingTeam].color;
+    circle(tp.x, tp.y, lerp(20, 56, phase), null, tpColor, 3);
+    ctx.setLineDash([4, 4]);
+    circle(tp.x, tp.y, 20, null, 'rgba(255,255,255,0.4)', 1.5);
+    ctx.setLineDash([]);
+    const hp = project(match.throwLock.thrower.x, match.throwLock.thrower.y, 1.4);
+    ctx.setLineDash([3, 7]);
+    line(hp, tp, 'rgba(255,255,255,0.25)', 1.5);
+    ctx.setLineDash([]);
+  }
+  // hold-limit warning
+  if (ball.state === 'held' && match.state === STATE.BALL_IN_PLAY && ball.holder) {
+    const limit = stat(ball.holder, 'holdLimitSeconds') + (ball.holder.stats.holdLimitBonus || 0);
+    if (limit - ball.holdSeconds < 1.2) {
+      const flash = Math.sin(renderClock * 18) > 0;
+      text('RELEASE THE BALL!', 480, 46,
+        { size: 22, weight: 900, mono: false, align: 'center', color: flash ? '#e05252' : '#ffffff' });
+    }
+  }
+  // floating timing feedback
+  for (const f of feedbacks) {
+    const t = (simTime - f.bornAt) / 0.9;
+    const p = project(f.x, f.y, 2.3);
+    text(f.text, p.x, p.y - 8 - t * 26,
+      { size: 13, weight: 800, align: 'center', color: f.color, alpha: clamp(1 - t, 0, 1) });
+  }
+}
+
+/* ============================================================
+   12. HUD
+   ============================================================ */
+function drawScoreboard() {
+  panel(14, 12, 332, 100);
+  const t0 = match.teams[0], t1 = match.teams[1];
+  const cols = Math.min(8, Math.max(INNINGS_PER_TEAM, t0.innings.length, t1.innings.length));
+  text('R', 130 + cols * 22 + 14, 26, { size: 9, color: COLORS.dim, align: 'center' });
+  for (let i = 0; i < 2; i++) {
+    const t = match.teams[i];
+    const y = 40 + i * 23;
+    chip(t.color, 26, y - 9);
+    text(t.name, 42, y, { size: 13, weight: 800 });
+    for (let c = 0; c < cols; c++) {
+      const v = t.innings[c];
+      text(v === undefined ? '\u2013' : String(v), 130 + c * 22, y,
+        { size: 13, color: v === undefined ? COLORS.dim : '#e8ebef', align: 'center' });
+    }
+    text(String(t.totalRuns), 130 + cols * 22 + 14, y, { size: 13, weight: 800, align: 'center', color: t.color });
+  }
+  const halfLabel = match.half === 'top' ? 'TOP' : 'BOTTOM';
+  const extra = match.inningNumber > INNINGS_PER_TEAM ? ' \u00B7 EXTRA' : '';
+  text('INNING ' + match.inningNumber + ' \u00B7 ' + halfLabel + extra + ' \u2014 '
+    + match.teams[match.battingTeam].name + ' BATTING', 26, 98, { size: 10, color: COLORS.dim });
+}
+
+function drawStatus() {
+  const b = match.batter; if (!b) return;
+  const team = match.teams[match.battingTeam];
+  panel(14, 120, 332, 80);
+  chip(team.color, 26, 132);
+  text('BATTER ' + (match.currentBatterIndex + 1), 42, 141, { size: 13, weight: 800 });
+  text('STRIKES', 326, 133, { size: 9, color: COLORS.dim, align: 'right' });
+  for (let i = 0; i < 3; i++) {
+    const filled = i < match.strikes[match.currentBatterIndex];
+    circle(300 + i * 15, 148, 5,
+      filled ? '#e05252' : 'rgba(255,255,255,0.10)',
+      filled ? null : 'rgba(255,255,255,0.3)', 1);
+  }
+  const alive = match.eliminated.filter(e => !e).length;
+  text('ALIVE ' + alive + '/' + PLAYERS_PER_TEAM + '   NEXT: ' + match.queue.map(i => i + 1).join(' '), 42, 162,
+    { size: 11, color: COLORS.dim });
+  text('RUNS THIS INNING: ' + (team.innings[team.innings.length - 1] || 0), 42, 178,
+    { size: 11, color: COLORS.dim });
+}
+
+function drawMessages() {
+  let y = 330;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    const a = Math.min(clamp((simTime - m.bornAt) / 0.12, 0, 1), clamp((m.until - simTime) / 0.3, 0, 1));
+    const big = i === messages.length - 1;
+    ctx.font = (big ? '800 26px ' : '700 16px ') + SANS_FONT;
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(10,12,15,0.75)'; ctx.lineJoin = 'round';
+    ctx.globalAlpha = a;
+    ctx.strokeText(m.text, 480, y);
+    ctx.fillStyle = m.color; ctx.fillText(m.text, 480, y);
+    if (m.sub) {
+      ctx.font = '600 12px ' + SANS_FONT;
+      ctx.strokeText(m.sub, 480, y + 18);
+      ctx.fillStyle = COLORS.dim; ctx.fillText(m.sub, 480, y + 18);
+    }
+    ctx.globalAlpha = 1;
+    y -= big ? 44 : 30;
+  }
+}
+
+function currentHint() {
+  if (match.attract) return 'ATTRACT MODE \u2014 press any key for the title screen';
+  switch (match.state) {
+    case STATE.READY_TO_PITCH:
+    case STATE.PITCH_IN_FLIGHT: {
+      if (isCpu(match.battingTeam)) return null;
+      const c = match.teams[match.battingTeam].controller;
+      const keys = c === 'p2' ? 'WASD move \u00B7 F swing \u00B7 G bunt \u00B7 H trap'
+                              : 'ARROWS move \u00B7 Z swing \u00B7 X bunt \u00B7 C trap';
+      return match.state === STATE.READY_TO_PITCH
+        ? keys + '  \u2014  hold \u2190/\u2192 to aim, \u2191 flat drive, \u2193 lob'
+        : keys + '  \u2014  swing as the ring closes on the strike point';
+    }
+    case STATE.BALL_IN_PLAY: {
+      if (!isCpu(match.battingTeam)) return 'RUN!  Back wall = +1 run, then get home safe \u2014 dodge thrown balls';
+      if (isHumanFielding()) {
+        const c = match.teams[match.fieldingTeam].controller;
+        return c === 'p2'
+          ? 'WASD move \u00B7 hold F to lock a throw, release at the tight ring \u00B7 G pass'
+          : 'ARROWS move \u00B7 hold Z to lock a throw, release at the tight ring \u00B7 X pass';
+      }
+      return null;
+    }
+    case STATE.PLAY_ENDED:
+    case STATE.INNING_ENDED:
+      return 'ENTER \u2014 continue';
+    case STATE.MATCH_ENDED:
+      return 'ENTER \u2014 back to the title screen';
+    default:
+      return null;
+  }
+}
+function drawHintBar() {
+  const hint = currentHint();
+  if (!hint) return;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.fillRect(0, 602, CANVAS_W, 38);
+  text(hint, 480, 626, { size: 12, color: COLORS.dim, align: 'center' });
+}
+
+function drawTitle() {
+  ctx.fillStyle = 'rgba(10,12,15,0.72)';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  ctx.letterSpacing = '10px';
+  ctx.font = '900 52px ' + SANS_FONT;
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = 'right'; ctx.fillStyle = TEAM_COLORS[0]; ctx.fillText('CAGE', 476, 150);
+  ctx.textAlign = 'left';  ctx.fillStyle = TEAM_COLORS[1]; ctx.fillText('PALANT', 484, 150);
+  ctx.letterSpacing = '0px';
+  text('bat & ball in a roofed cage \u2014 soak the runner before they get home', 480, 182,
+    { size: 13, color: COLORS.dim, mono: false, align: 'center' });
+
+  panel(310, 212, 340, 118);
+  const rows = [
+    { label: 'MODE', value: MODE_LABELS[menuMode] },
+    { label: 'CPU SKILL', value: DIFFS[menuDiff].toUpperCase() },
+  ];
+  rows.forEach((r, i) => {
+    const y = 246 + i * 44;
+    const sel = menuRow === i;
+    if (sel) {
+      ctx.fillStyle = TEAM_COLORS[0];
+      ctx.beginPath();
+      ctx.moveTo(324, y - 10); ctx.lineTo(332, y - 5); ctx.lineTo(324, y);
+      ctx.closePath(); ctx.fill();
+    }
+    text(r.label, 344, y, { size: 11, color: COLORS.dim });
+    text('\u2039 ' + r.value + ' \u203A', 628, y, { size: 15, weight: 800, align: 'right', color: sel ? '#e8ebef' : COLORS.dim });
+  });
+  text('\u2191\u2193 choose row \u00B7 \u2190\u2192 change \u00B7 ENTER start', 480, 356,
+    { size: 11, color: COLORS.dim, align: 'center' });
+
+  panel(150, 384, 660, 128);
+  const lines = [
+    ['P1', 'ARROWS move \u00B7 Z swing/throw \u00B7 X bunt/pass \u00B7 C trap'],
+    ['P2', 'WASD move \u00B7 F swing/throw \u00B7 G bunt/pass \u00B7 H trap'],
+    ['ALL', 'ENTER pause \u00B7 gamepads welcome \u00B7 ` debug overlay \u00B7 M mute'],
+  ];
+  lines.forEach((l, i) => {
+    text(l[0], 172, 414 + i * 24, { size: 11, weight: 800, color: COLORS.dim });
+    text(l[1], 206, 414 + i * 24, { size: 12, color: '#c3c9cf' });
+  });
+  text('Back wall touch = +1 run \u00B7 three cumulative strikes or a soaked runner ends the turn \u00B7 reach home to survive.',
+    480, 494, { size: 11, color: COLORS.dim, align: 'center' });
+  const pulse = 0.6 + 0.4 * Math.sin(renderClock * 3);
+  text('ENTER \u2014 PLAY BALL', 480, 560,
+    { size: 16, weight: 800, mono: false, align: 'center', color: '#e8ebef', alpha: pulse });
+}
+
+function drawLinescoreRows(cx, y) {
+  const t0 = match.teams[0], t1 = match.teams[1];
+  const cols = Math.min(8, Math.max(INNINGS_PER_TEAM, t0.innings.length, t1.innings.length));
+  for (let i = 0; i < 2; i++) {
+    const t = match.teams[i];
+    const rowY = y + i * 20;
+    text(t.name, cx - 90, rowY, { size: 12, weight: 800, color: t.color });
+    let s = '';
+    for (let c = 0; c < cols; c++) s += (t.innings[c] === undefined ? '\u2013' : t.innings[c]) + '  ';
+    text(s + ' R ' + t.totalRuns, cx - 30, rowY, { size: 12, color: '#e8ebef' });
+  }
+}
+
+function drawInningSummary() {
+  ctx.fillStyle = 'rgba(10,12,15,0.55)';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  panel(300, 214, 360, 160);
+  const batting = match.teams[match.battingTeam];
+  const runs = batting.innings[batting.innings.length - 1] || 0;
+  text('END OF INNING ' + match.inningNumber, 480, 252, { size: 12, color: COLORS.dim, align: 'center' });
+  chip(batting.color, 428, 272);
+  text(batting.name + ' SCORED ' + runs + ' RUN' + (runs === 1 ? '' : 'S'), 480, 282,
+    { size: 22, weight: 800, mono: false, align: 'center', color: batting.color });
+  drawLinescoreRows(480, 316);
+  text('ENTER \u2014 continue', 480, 356, { size: 11, color: COLORS.dim, align: 'center' });
+}
+
+function drawMatchEnd() {
+  ctx.fillStyle = 'rgba(10,12,15,0.7)';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  const t0 = match.teams[0], t1 = match.teams[1];
+  if (t0.totalRuns === t1.totalRuns) {
+    text('DRAWN', 480, 200, { size: 34, weight: 900, mono: false, align: 'center', color: '#e8ebef' });
+  } else {
+    const winner = t0.totalRuns > t1.totalRuns ? t0 : t1;
+    text(winner.name + ' WINS', 480, 200, { size: 34, weight: 900, mono: false, align: 'center', color: winner.color });
+  }
+  text(t0.totalRuns + ' \u2014 ' + t1.totalRuns, 480, 234,
+    { size: 20, weight: 800, mono: false, align: 'center', color: COLORS.dim });
+  drawLinescoreRows(480, 286);
+  text('ENTER \u2014 back to the title screen', 480, 350, { size: 11, color: COLORS.dim, align: 'center' });
+}
+
+function drawPause() {
+  ctx.fillStyle = 'rgba(10,12,15,0.6)';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  text('PAUSED', 480, 300, { size: 30, weight: 900, mono: false, align: 'center' });
+  text('ENTER \u2014 resume \u00B7 ESC \u2014 quit to title', 480, 330, { size: 12, color: COLORS.dim, align: 'center' });
+}
+
+/* Debug overlay — verifies the derived tuning: perfect rows must reach the
+   wall distance, good and weak rows must stay short of it. */
+function drawDebug() {
+  panel(626, 12, 322, 250);
+  const wallFromFront = CAGE_LENGTH - BATTING_BOX.yMin;
+  const lines = [
+    'FULL POWER  ' + FULL_POWER_HIT_SPEED.toFixed(2) + ' m/s (derived)',
+    'CEILING     ' + CEILING_HEIGHT.toFixed(2) + ' m (derived)',
+    'wall from box front ' + wallFromFront.toFixed(1) + ' m',
+    '',
+    'first landing distance (m):',
+    'quality  30\u00B0    35\u00B0    40\u00B0    45\u00B0    50\u00B0',
+  ];
+  for (const q of ['perfect', 'good', 'weak']) {
+    const speed = FULL_POWER_HIT_SPEED * HIT_QUALITIES[q].speedFactor;
+    let row = (HIT_QUALITIES[q].label + '       ').slice(0, 8);
+    for (const a of [30, 35, 40, 45, 50]) {
+      row += projectileRange(speed, a, STRIKE_HEIGHT).toFixed(1).padStart(6);
+    }
+    lines.push(row);
+  }
+  lines.push('');
+  lines.push('perfect rows must reach ' + wallFromFront.toFixed(1) + ' m;');
+  lines.push('good rows must stay short of it.');
+  lines.forEach((l, i) => text(l, 638, 34 + i * 16, { size: 11, color: '#b9c0c7' }));
+}
+
+/* ============================================================
+   13. MAIN LOOP — fixed timestep with interpolated rendering
+   ============================================================ */
+function render(alpha) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = COLORS.bg;
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  drawCage();
+  if (match.state === STATE.TITLE) { drawTitle(); return; }
+  drawShadowsAndTrail(alpha);
+  drawEntities(alpha);
+  drawOverlays(alpha);
+  drawScoreboard();
+  drawStatus();
+  drawMessages();
+  drawHintBar();
+  if (match.state === STATE.INNING_ENDED) drawInningSummary();
+  if (match.state === STATE.MATCH_ENDED) drawMatchEnd();
+  if (debugOverlay) drawDebug();
+  if (paused) drawPause();
+}
+
+let accumulator = 0, lastFrameTime = performance.now();
+function frame(now) {
+  const elapsedSeconds = Math.min((now - lastFrameTime) / 1000, MAX_FRAME_SECONDS);
+  lastFrameTime = now;
+  if (!paused) {
+    accumulator += elapsedSeconds;
+    let steps = 0;
+    while (accumulator >= FIXED_DT && steps < 6) {
+      update(FIXED_DT);
+      accumulator -= FIXED_DT;
+      steps++;
+    }
+    if (steps === 6) accumulator = 0;   // drop time if badly behind
+  }
+  renderClock = simTime + accumulator;  // continuous clock for visual animations
+  render(clamp(accumulator / FIXED_DT, 0, 1));
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(t => { lastFrameTime = t; requestAnimationFrame(frame); });
+</script>
+</body>
+</html>
